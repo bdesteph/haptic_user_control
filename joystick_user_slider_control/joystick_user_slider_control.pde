@@ -54,23 +54,30 @@ float             radsPerDegree                       = 0.01745;
 float             l                                   = 0.07;
 float             L                                   = 0.09;
 
+
 /* end effector radius in meters */
 float             rEE                                 = 0.006;
 
+/* joystick circle parameter */
+int radius = 250;
+PVector penX = new PVector(0, 0);
+PVector penY = new PVector(0, 0);
+
 /* virtual wall parameter  */
 float             kWall                               = 450;
+float             kLine1                               = 50;
+float             kLine2                               = 100;
 PVector           fWall                               = new PVector(0, 0);
+PVector           fPos                           = new PVector(0, 0);
+PVector           fLines                               = new PVector(0, 0);
 PVector           penWall                             = new PVector(0, 0);
+PVector           penLine1                             = new PVector(0, 0);
+PVector           penLine2                            = new PVector(0, 0);
 PVector           posWall                             = new PVector(0.01, 0.10);
 
-/* virtual line parameter  */
-PVector           fLine                               = new PVector(0, 0);
-PVector           posLine                            = new PVector(0.01, 0.08);
-PVector           penLine                            = new PVector(0, 0);
+PVector           posLine1                               = new PVector(0.01, 0.05);
+PVector           posLine2                               = new PVector(0.01, 0.075);
 
-/* virtual slider parameter */
-float             mSlider                             = 0.15; // kg
-PVector           fSlider                              = new PVector(0, 0);
 
 /* generic data for a 2DOF device */
 /* joint space */
@@ -79,29 +86,22 @@ PVector           torques                             = new PVector(0, 0);
 
 /* task space */
 PVector           posEE                               = new PVector(0, 0);
+PVector posY = new PVector(0, 0); 
 PVector           fEE                                 = new PVector(0, 0); 
 
 /* device graphical position */
 PVector           deviceOrigin                        = new PVector(0, 0);
 
 /* World boundaries reference */
-final int         worldPixelWidth                     = 1000;
+final int         worldPixelWidth                     = 800;
 final int         worldPixelHeight                    = 650;
 
-/* values for the oscillation */
-
 boolean start = false;
-float theta = 0.0;
-
-/* values for the force sinusoid */
-
-float forceTheta = 0.0;
 
 /* graphical elements */
-PShape pGraph, joint, endEffector, sliderCursor;
-PShape wall, line;
+PShape pGraph, joint, endEffector;
+PShape wall, line1, line2, circle;
 /* end elements definition *********************************************************************************************/ 
-
 
 
 /* setup section *******************************************************************************************************/
@@ -109,7 +109,7 @@ void setup(){
   /* put setup code here, run once: */
   
   /* screen size definition */
-  size(1000, 650);
+  size(800, 650);
   
   /* device setup */
   
@@ -135,28 +135,26 @@ void setup(){
   widgetOne.add_encoder(2, CW, -61, 10752, 1);
   
   widgetOne.device_set_parameters();
-    
+  
   
   /* visual elements setup */
   background(0);
   deviceOrigin.add(worldPixelWidth/2, 0);
-  
   /* create pantagraph graphics */
   create_pantagraph();
   
   /* create wall graphics */
-  wall = create_wall(posWall.x-0.2, posWall.y+rEE, posWall.x+0.2, posWall.y+rEE);
+  
+  
+  /*wall = create_wall(posWall.x-0.2, posWall.y+rEE, posWall.x+0.2, posWall.y+rEE);
   wall.setStroke(color(0));
   
-  /* create line graphics */
-  line = create_wall(posLine.x-0.2, posLine.y+rEE, posLine.x+0.2, posLine.y+rEE);
-  line.setStroke(color(128));
-  /*
-  sliderCursor = createShape(RECT, deviceOrigin.x - 0.1 * pixelsPerMeter, deviceOrigin.y + (0.083 + rEE) * pixelsPerMeter, 0.02 * pixelsPerMeter, 0.015 * pixelsPerMeter);
-  sliderCursor.strokeWeight(2);
-  sliderCursor.setStroke(color(0));
-  sliderCursor.setFill(color(255));
-  */
+  line1 = create_wall(posLine1.x-0.2, posLine1.y+rEE, posLine1.x+0.2, posLine1.y+rEE);
+  line1.setStroke(color(128));
+  
+  line2 = create_wall(posLine2.x-0.2, posLine2.y+rEE, posLine2.x+0.2, posLine2.y+rEE);
+  line2.setStroke(color(128));*/
+  
   /* setup framerate speed */
   frameRate(baseFrameRate);
   
@@ -167,7 +165,7 @@ void setup(){
 }
 /* end setup section ***************************************************************************************************/
 
-
+/* With a screen width of 800 x 650px/m, posEE.x goes from -0.096 to 0.096,posEE.y from 0.022 to 0.15
 
 /* draw section ********************************************************************************************************/
 void draw(){
@@ -187,19 +185,12 @@ class SimulationThread implements Runnable{
   public void run(){
     /* put haptic simulation code here, runs repeatedly at 1kHz as defined in setup */
     
-    // force sinusoid oscillation
-    float forceSinusoid = (sin(theta) *      1.75);
-  
-    if (start == true) {
-      forceTheta += 0.005;
-    }
-    
     renderingForce = true;
     
     if(haplyBoard.data_available()){
       /* GET END-EFFECTOR STATE (TASK SPACE) */
       widgetOne.device_read_data();
-      
+    
       angles.set(widgetOne.get_device_angles()); 
       posEE.set(widgetOne.get_device_position(angles.array()));
       posEE.set(device_to_graphics(posEE)); 
@@ -207,35 +198,49 @@ class SimulationThread implements Runnable{
       
       /* haptic wall force calculation */
       fWall.set(0, 0);
-      fLine.set(0, 0);
-      fSlider.set(0, 0);
+      posY.set(0, posEE.y);
+      fPos.set(0, 0);
+      fLines.set(0, 0);
       
       penWall.set(0, (posWall.y - (posEE.y + rEE)));
-      /*
-      if (start == true) {
-        penLine.set(0, (posLine.y - (posEE.y - rEE)));
-        if(penLine.y > 0){
-          fLine = fLine.add(penLine.mult(-kWall));  
-        }
-        
-       if(penWall.y < 0){
+      penLine1.set(0, (posLine1.y - posEE.y));
+      
+      penX.set(4000 * (posEE.x + rEE) - worldPixelWidth/2, 0);
+      penY.set(0, 4000 * (posEE.y + rEE) - worldPixelHeight/2);
+      
+      //fY = fY.add(posY).mult(20);
+      //fY = fY.add(0, 2);
+      
+      print("penX: ", penX.x, " penY: ", penY.y, " ");
+      
+      if(penLine1.y < 0){
+        fLines = fLines.add(penLine1.mult(-50));
+      }
+      
+      if(penWall.y < 0){
+        //fWall = fWall.add(penWall.mult(-kWall));  
         fWall = fWall.add(penWall.mult(-kWall));  
       }
-      }
-      */
+      
       if (start == true) {
-        fSlider.add(forceSinusoid, 0);
+        
       }
       
-      
-      
-      // fEE = (fWall.copy().add(fSlider)).mult(-1);
-      fEE = (fSlider.copy());
+      fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
+ 
+      //fEE = (fWall.copy()).mult(-1);
+      fEE = fPos.copy();
       fEE.set(graphics_to_device(fEE));
-      print(forceSinusoid, " ");
       /* end haptic wall force calculation */
     }
     
+    //print(grid_to_force(pos_to_grid(posEE)));
+    //print(pos_to_grid(posEE));
+    
+    //print(fEE.mag(), " ");
+    //print((pow(2*PI, 1/2))*exp(-pow(10 - 10, 2)/4), " ");
+    
+    //fEE.set(0, 0);
     
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
@@ -249,7 +254,7 @@ class SimulationThread implements Runnable{
 
 /* helper functions section, place helper functions here ***************************************************************/
 void create_pantagraph(){
-  float lAni = pixelsPerMeter * l; 
+  float lAni = pixelsPerMeter * l;
   float LAni = pixelsPerMeter * L;
   float rEEAni = pixelsPerMeter * rEE;
   
@@ -285,16 +290,6 @@ PShape create_wall(float x1, float y1, float x2, float y2){
 }
 
 
-PShape create_slider(float x) {
-  float x1 = pixelsPerMeter * (x - 0.01);
-  float y1 = pixelsPerMeter * (0.083 + rEE);
-  float h = pixelsPerMeter * 0.014;
-  float w = pixelsPerMeter * 0.02;
-  
-  return createShape(RECT, deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
-}
-
-
 void update_animation(float th1, float th2, float xE, float yE){
   background(255);
   
@@ -311,28 +306,57 @@ void update_animation(float th1, float th2, float xE, float yE){
   pGraph.setVertex(3, deviceOrigin.x + lAni*cos(th2), deviceOrigin.y + lAni*sin(th2));
   pGraph.setVertex(2, deviceOrigin.x + xE, deviceOrigin.y + yE);
   
-  // x 
-  float x = (sin(theta) / (1/0.09));
+  PShape circle = createShape(ELLIPSE, worldPixelWidth/2, worldPixelHeight/2, radius, radius);
+  circle.noFill();
+  circle.stroke(0);
+  circle.strokeWeight(3);
   
-  if (start == true) {
-    theta += 0.005;
-  }
-
-  sliderCursor = create_slider(x);
-  sliderCursor.setStroke(color(0));
-  sliderCursor.setFill(color(255));
-  
-  shape(joint);
   shape(pGraph);
-  shape(sliderCursor);
-  shape(wall);
-  shape(line);
+  shape(joint);
+  /*shape(wall);
+  shape(line1);
+  shape(line2);*/
+  shape(circle);
+  
+  // ellipse(worldPixelWidth/2, worldPixelHeight/2, 250, 250);
   
   
   translate(xE, yE);
   shape(endEffector);
 }
 
+PVector pos_to_grid(PVector position){
+   float posX = position.x/0.01;
+   float posY = position.y/0.0075;
+   
+   PVector grid = new PVector(posX+10, posY);
+   
+   // print("X: ", posX, " Y: ", posY, " ");
+   
+   return grid;
+}
+
+PVector grid_to_force(PVector grid){
+  //PVector force = new PVector(grid.x - 10, grid.y - 10);
+
+  //float gauss_x = 1/(pow(2*PI, 1/2))*exp(-pow(grid.x - 10, 2)/4);
+  //float gauss_y = 1/(pow(2*PI, 1/2))*exp(-pow(grid.y - 10, 2)/4);
+
+  float gauss_x = (pow(2*PI, 1/2))*exp(-pow(grid.x - 10, 2)/4);
+  float gauss_y = (pow(2*PI, 1/2))*exp(-pow(grid.y - 10, 2)/4);
+
+  PVector force = new PVector(1 - gauss_x, 1 - gauss_y);
+  
+  if (grid.x < 10){
+    force.x = - force.x;
+  }
+  
+  if (grid.y < 10){
+    force.y = - force.y;
+  }
+  
+  return force;
+}
 
 PVector device_to_graphics(PVector deviceFrame){
   return deviceFrame.set(-deviceFrame.x, deviceFrame.y);
@@ -352,6 +376,7 @@ void keyPressed() {
   }
   
 }
+
 
 
 
