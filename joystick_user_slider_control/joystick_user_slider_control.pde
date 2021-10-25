@@ -78,6 +78,19 @@ PVector           posWall                             = new PVector(0.01, 0.10);
 PVector           posLine1                               = new PVector(0.01, 0.05);
 PVector           posLine2                               = new PVector(0.01, 0.075);
 
+/* slider parameters */
+Slider s;
+float xSlider; // x position
+float mSlider = 0.15; // mass in kg
+PVector accelerationSlider = new PVector(0, 0); // acceleration
+PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
+
+float sinTheta = 0;
+//boolean 
+int sinSwitch = 1;
+boolean firstPart = true;
+boolean sinPositive = true;
+
 
 /* generic data for a 2DOF device */
 /* joint space */
@@ -99,7 +112,7 @@ final int         worldPixelHeight                    = 650;
 boolean start = false;
 
 /* graphical elements */
-PShape pGraph, joint, endEffector;
+PShape pGraph, joint, endEffector, sliderCursor;
 PShape wall, line1, line2, circle;
 /* end elements definition *********************************************************************************************/ 
 
@@ -122,7 +135,9 @@ void setup(){
    *      linux:        haplyBoard = new Board(this, "/dev/ttyUSB0", 0);
    *      mac:          haplyBoard = new Board(this, "/dev/cu.usbmodem1411", 0);
    */ 
-  haplyBoard          = new Board(this, "/dev/cu.usbmodem14201", 0);
+   haplyBoard          = new Board(this, "COM7", 0);
+   //haplyBoard          = new Board(this, Serial.list()[0], 0);
+  // haplyBoard          = new Board(this, "/dev/cu.usbmodem14201", 0);
   widgetOne           = new Device(widgetOneID, haplyBoard);
   pantograph          = new Pantograph();
   
@@ -158,6 +173,7 @@ void setup(){
   /* setup framerate speed */
   frameRate(baseFrameRate);
   
+  s = new Slider();
   
   /* setup simulation thread to run at 1kHz */ 
   SimulationThread st = new SimulationThread();
@@ -187,6 +203,55 @@ class SimulationThread implements Runnable{
     
     renderingForce = true;
     
+    float aSinusoid;
+    
+    aSinusoid = sinSwitch * (sin(sinTheta) * 0.0000000085);
+    // first part of the sine wave
+    if (firstPart == true) {
+      if (sinPositive == true) {
+        if (sin(sinTheta) < 0) {
+          firstPart = false;
+          sinPositive = false;
+        }
+      }
+      else {
+        if (sin(sinTheta) > 0) {
+          firstPart = false;
+          sinPositive = true;
+        }
+      }
+    } // second partof the sine wave
+    else {
+      if (sinPositive == false) {
+        if (sin(sinTheta) > 0) {
+          firstPart = true;
+          sinPositive = true;
+          sinSwitch = -1 * sinSwitch;
+        }
+      }
+      else {
+        if (sin(sinTheta) < 0) {
+          firstPart = true;
+          sinPositive = true;
+          sinSwitch = -1 * sinSwitch;
+        }
+      }
+    }
+
+    forceSlider.mult(0);
+  
+    if (start == true) {
+      sinTheta += 0.005;
+      // print(sinTheta, " ");
+      forceSlider.add(0.5 * aSinusoid, 0);
+      s.applyForce(forceSlider);
+      s.update();
+      
+      if(sin(sinTheta) == 0) {
+        print("0 !!!! ");
+      }
+    }
+    
     if(haplyBoard.data_available()){
       /* GET END-EFFECTOR STATE (TASK SPACE) */
       widgetOne.device_read_data();
@@ -211,7 +276,7 @@ class SimulationThread implements Runnable{
       //fY = fY.add(posY).mult(20);
       //fY = fY.add(0, 2);
       
-      print("penX: ", penX.x, " penY: ", penY.y, " ");
+      // print("penX: ", penX.x, " penY: ", penY.y, " ");
       
       if(penLine1.y < 0){
         fLines = fLines.add(penLine1.mult(-50));
@@ -234,17 +299,11 @@ class SimulationThread implements Runnable{
       /* end haptic wall force calculation */
     }
     
-    //print(grid_to_force(pos_to_grid(posEE)));
-    //print(pos_to_grid(posEE));
-    
-    //print(fEE.mag(), " ");
-    //print((pow(2*PI, 1/2))*exp(-pow(10 - 10, 2)/4), " ");
-    
     //fEE.set(0, 0);
     
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
-  
+    
   
     renderingForce = false;
   }
@@ -279,6 +338,41 @@ void create_pantagraph(){
   
 }
 
+class Slider {
+  PVector location;
+  PVector velocity;
+  PVector acceleration;
+  
+  Slider() {
+    location = new PVector(-0.085, 0.13);
+    velocity = new PVector(0, 0);
+    acceleration = new PVector(0, 0);  
+  }
+  
+  void update() {
+    velocity.add(acceleration);
+    location.add(velocity);
+    acceleration.mult(0);
+  }
+  
+  void applyForce(PVector force) {
+    acceleration.add(force);
+  }
+  
+  PShape display() {
+    float x = this.location.x;
+    float x1 = pixelsPerMeter * (x - 0.01);
+    float y1 = pixelsPerMeter * (0.083 + rEE);
+    float h = pixelsPerMeter * 0.014;
+    float w = pixelsPerMeter * 0.02;
+  
+    return createShape(RECT, x1, deviceOrigin.y + y1, w, h);
+  }
+  
+  float getX() {
+    return this.location.x;
+  }
+}
 
 PShape create_wall(float x1, float y1, float x2, float y2){
   x1 = pixelsPerMeter * x1;
@@ -311,18 +405,36 @@ void update_animation(float th1, float th2, float xE, float yE){
   circle.stroke(0);
   circle.strokeWeight(3);
   
+  // print(s.getX());
+  
+  // sliderCursor = s.display();
+  sliderCursor = create_slider(s.getX());
+  sliderCursor.setStroke(color(0));
+  sliderCursor.setFill(color(255));
+
+  
   shape(pGraph);
   shape(joint);
   /*shape(wall);
   shape(line1);
   shape(line2);*/
   shape(circle);
+  shape(sliderCursor);
   
   // ellipse(worldPixelWidth/2, worldPixelHeight/2, 250, 250);
   
   
   translate(xE, yE);
   shape(endEffector);
+}
+
+PShape create_slider(float x) {
+  float x1 = pixelsPerMeter * (x - 0.01);
+  float y1 = pixelsPerMeter * (0.125 + rEE);
+  float h = pixelsPerMeter * 0.014;
+  float w = pixelsPerMeter * 0.02;
+  
+  return createShape(RECT,deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
 }
 
 PVector pos_to_grid(PVector position){
@@ -376,7 +488,6 @@ void keyPressed() {
   }
   
 }
-
 
 
 
