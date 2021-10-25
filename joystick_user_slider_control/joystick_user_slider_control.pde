@@ -205,7 +205,9 @@ class SimulationThread implements Runnable{
     
     float aSinusoid;
     
-    aSinusoid = sinSwitch * (sin(sinTheta) * 0.0000000085);
+    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
+    
     // first part of the sine wave
     if (firstPart == true) {
       if (sinPositive == true) {
