@@ -173,7 +173,7 @@ void setup(){
   /* setup framerate speed */
   frameRate(baseFrameRate);
   
-  s = new Slider();
+  s = new Slider(-0.085, 0.13);
   
   /* setup simulation thread to run at 1kHz */ 
   SimulationThread st = new SimulationThread();
@@ -206,9 +206,6 @@ class SimulationThread implements Runnable{
     /* sinusoid force simulation part */ 
     float aSinusoid;
     
-    aSinusoid = sinSwitch * (sin(sinTheta) * 0.0000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
-    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
-    
     /* this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
     
     // first part of the sine wave
@@ -232,7 +229,6 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
-          // print(s.getX());
         }
       }
       else {
@@ -243,19 +239,17 @@ class SimulationThread implements Runnable{
         }
       }
     }
+    
+    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
 
     forceSlider.mult(0);
   
     if (start == true) {
       sinTheta += 0.005;
-      // print(sinTheta, " ");
       forceSlider.add(0.5 * aSinusoid, 0);
       s.applyForce(forceSlider);
       s.update();
-      
-      if(sin(sinTheta) == 0) {
-        print("0 !!!! ");
-      }
     }
     
     if(haplyBoard.data_available()){
@@ -275,14 +269,10 @@ class SimulationThread implements Runnable{
       
       penWall.set(0, (posWall.y - (posEE.y + rEE)));
       penLine1.set(0, (posLine1.y - posEE.y));
-      
+      /*
       penX.set(4000 * (posEE.x + rEE) - worldPixelWidth/2, 0);
       penY.set(0, 4000 * (posEE.y + rEE) - worldPixelHeight/2);
-      
-      //fY = fY.add(posY).mult(20);
-      //fY = fY.add(0, 2);
-      
-      // print("penX: ", penX.x, " penY: ", penY.y, " ");
+      */
       
       if(penLine1.y < 0){
         fLines = fLines.add(penLine1.mult(-50));
@@ -294,18 +284,20 @@ class SimulationThread implements Runnable{
       }
       
       if (start == true) {
-        
+        fPos = fPos.add(s.getVelocity());
       }
       
-      fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
+      // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
  
-      //fEE = (fWall.copy()).mult(-1);
-      fEE = fPos.copy();
+      // fEE = (fWall.copy()).mult(-1);
+      // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
+      fEE = fPos.copy().mult(5000);
       fEE.set(graphics_to_device(fEE));
       /* end haptic wall force calculation */
     }
     
     //fEE.set(0, 0);
+    print(fEE.mag(), " ");
     
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
@@ -349,14 +341,15 @@ class Slider {
   PVector velocity;
   PVector acceleration;
   
-  Slider() {
-    location = new PVector(-0.085, 0.13);
+  Slider(float x, float y) {
+    location = new PVector(x, y);
     velocity = new PVector(0, 0);
     acceleration = new PVector(0, 0);  
   }
   
   void update() {
     velocity.add(acceleration);
+    // print(this.velocity.x, " " ); 
    
     // if the slider must go off the limits, velocity is still calculated but the location stays the same
     if (this.location.x + this.velocity.x < -0.085) {
@@ -385,6 +378,10 @@ class Slider {
   
   float getX() {
     return this.location.x;
+  }
+  
+  PVector getVelocity() {
+    return this.velocity;
   }
 }
 
@@ -450,7 +447,7 @@ PShape create_slider(float x) {
   
   return createShape(RECT,deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
 }
-
+/*
 PVector pos_to_grid(PVector position){
    float posX = position.x/0.01;
    float posY = position.y/0.0075;
@@ -483,7 +480,7 @@ PVector grid_to_force(PVector grid){
   
   return force;
 }
-
+*/
 PVector device_to_graphics(PVector deviceFrame){
   return deviceFrame.set(-deviceFrame.x, deviceFrame.y);
 }
