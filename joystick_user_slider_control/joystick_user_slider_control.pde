@@ -135,9 +135,9 @@ void setup(){
    *      linux:        haplyBoard = new Board(this, "/dev/ttyUSB0", 0);
    *      mac:          haplyBoard = new Board(this, "/dev/cu.usbmodem1411", 0);
    */ 
-   haplyBoard          = new Board(this, "COM7", 0);
+   // haplyBoard          = new Board(this, "COM7", 0);
    //haplyBoard          = new Board(this, Serial.list()[0], 0);
-  // haplyBoard          = new Board(this, "/dev/cu.usbmodem14201", 0);
+  haplyBoard          = new Board(this, "/dev/cu.usbmodem14201", 0);
   widgetOne           = new Device(widgetOneID, haplyBoard);
   pantograph          = new Pantograph();
   
@@ -203,10 +203,13 @@ class SimulationThread implements Runnable{
     
     renderingForce = true;
     
+    /* sinusoid force simulation part */ 
     float aSinusoid;
     
-    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+    aSinusoid = sinSwitch * (sin(sinTheta) * 0.0000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
     // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
+    
+    /* this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
     
     // first part of the sine wave
     if (firstPart == true) {
@@ -229,6 +232,7 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
+          // print(s.getX());
         }
       }
       else {
@@ -353,7 +357,15 @@ class Slider {
   
   void update() {
     velocity.add(acceleration);
-    location.add(velocity);
+   
+    // if the slider must go off the limits, velocity is still calculated but the location stays the same
+    if (this.location.x + this.velocity.x < -0.085) {
+      this.location.set(-0.085, 0.13);
+    } else if (this.location.x + this.velocity.x > 0.085) {
+      this.location.set(0.085, 0.13);
+    } else {
+      location.add(velocity);
+    }
     acceleration.mult(0);
   }
   
