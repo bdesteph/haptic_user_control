@@ -82,6 +82,7 @@ float xSlider; // x position
 float mSlider = 0.15; // mass in kg
 PVector accelerationSlider = new PVector(0, 0); // acceleration
 PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
+PVector userForceSlider = new PVector(0, 0);
 
 float sinTheta = 0;
 //boolean 
@@ -279,19 +280,47 @@ class SimulationThread implements Runnable{
       
       // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
       
-      // fPos can't be over 2
+      // fPos can't be over 2 because it would be to much
       if (fPos.x > 2.0) {
         fPos.set(2, 0);
       }
       if (fPos.x < -2.0) {
         fPos.set(-2, 0);
       }
-      // is the cursor in the rest zone?
+      // is the cursor in the rest zone? if no, then the slider force will apply as well on the cursor
       if (posEE.x < -0.01 || posEE.x > 0.01) {
         fEE = (fWall.copy().add(fLine).add(fPos)).mult(-1);
       }
       else {
         fEE = (fWall.copy().add(fLine)).mult(-1);
+      }
+      
+      // cursorPercentage is the user's position explained 
+      float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
+      if (cursorPercentage < -1) {
+        cursorPercentage = -1;
+      }
+      if (cursorPercentage > 1) {
+        cursorPercentage = 1;
+      }
+      
+      aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+      // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
+      
+      if (start == true) {
+        sinTheta += 0.005;
+        forceSlider.add(aSinusoid, 0);
+ 
+        // if the cursos is out the rest zone, then the user is expressing a force
+        if (posEE.x < -0.01 || posEE.x > 0.01) {
+          // s.applyUserForce(cursorPercentage);
+          userForceSlider = forceSlider.copy();
+          userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
+          forceSlider = userForceSlider;
+        }
+
+        s.applyForce(forceSlider);
+        s.update();
       }
             
       // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
@@ -301,24 +330,6 @@ class SimulationThread implements Runnable{
     }
     
     //fEE.set(0, 0);
-    
-    float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
-    // print(nf(posEE.x, 0, 3), " ");
-    // print(nf(cursorPercentage, 0, 2), " ");
-    
-    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
-    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
-    
-    if (start == true) {
-      sinTheta += 0.005;
-      forceSlider.add(0.5 * aSinusoid, 0);
-      s.applyForce(forceSlider);
-      if (posEE.x < -0.01 || posEE.x > 0.01) {
-        s.applyUserForce(cursorPercentage);
-      }
-      
-      s.update();
-    }
     
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
@@ -369,9 +380,11 @@ class Slider {
   }
   
   void update() {
-    velocity.add(acceleration);
-    // print(this.velocity.x, " " ); 
-   
+    // the velocity must be bounded: VALUE NEED TO BE WELL DEFINED
+    if (velocity.x < 1) {
+      velocity.add(acceleration);
+    }
+    
     // if the slider must go off the limits, velocity is still calculated but the location stays the same
     if (this.location.x + this.velocity.x < -0.085) {
       this.location.set(-0.085, 0.13);
@@ -379,13 +392,14 @@ class Slider {
       this.location.set(0.085, 0.13);
     } else {
       location.add(velocity);
-    }
+    } 
     acceleration.mult(0);
+    // print(" x: ", this.velocity.x);
   }
   
   void applyUserForce(float percentage) {
-    this.applyForce(velocity.mult(-0.000000001 * percentage));
-    print(velocity.mult(-0.000000001 * percentage));
+    // this.applyForce(velocity.mult(-0.000000001 * percentage));
+    this.applyForce(velocity.mult(percentage));
   }
   
   void applyForce(PVector force) {
