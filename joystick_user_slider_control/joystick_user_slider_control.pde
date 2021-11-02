@@ -59,7 +59,7 @@ float             L                                   = 0.09;
 float             rEE                                 = 0.006;
 
 /* joystick circle parameter */
-int radius = 250;
+int radius = 100;
 PVector penX = new PVector(0, 0);
 PVector penY = new PVector(0, 0);
 
@@ -69,14 +69,12 @@ float             kLine1                               = 50;
 float             kLine2                               = 100;
 PVector           fWall                               = new PVector(0, 0);
 PVector           fPos                           = new PVector(0, 0);
-PVector           fLines                               = new PVector(0, 0);
+PVector           fLine                               = new PVector(0, 0);
 PVector           penWall                             = new PVector(0, 0);
-PVector           penLine1                             = new PVector(0, 0);
-PVector           penLine2                            = new PVector(0, 0);
+PVector           penLine                             = new PVector(0, 0);
 PVector           posWall                             = new PVector(0.01, 0.10);
 
-PVector           posLine1                               = new PVector(0.01, 0.05);
-PVector           posLine2                               = new PVector(0.01, 0.075);
+PVector           posLine                               = new PVector(0.01, 0.08);
 
 /* slider parameters */
 Slider s;
@@ -90,6 +88,10 @@ float sinTheta = 0;
 int sinSwitch = 1;
 boolean firstPart = true;
 boolean sinPositive = true;
+
+/* joystick parameters */
+float x_start = 0.01;
+float x_max = 0.091;
 
 
 /* generic data for a 2DOF device */
@@ -113,7 +115,7 @@ boolean start = false;
 
 /* graphical elements */
 PShape pGraph, joint, endEffector, sliderCursor;
-PShape wall, line1, line2, circle;
+PShape wall, line2, circle;
 /* end elements definition *********************************************************************************************/ 
 
 
@@ -161,14 +163,12 @@ void setup(){
   /* create wall graphics */
   
   
-  /*wall = create_wall(posWall.x-0.2, posWall.y+rEE, posWall.x+0.2, posWall.y+rEE);
+  wall = create_wall(posWall.x-0.2, posWall.y+rEE, posWall.x+0.2, posWall.y+rEE);
   wall.setStroke(color(0));
+
   
-  line1 = create_wall(posLine1.x-0.2, posLine1.y+rEE, posLine1.x+0.2, posLine1.y+rEE);
-  line1.setStroke(color(128));
-  
-  line2 = create_wall(posLine2.x-0.2, posLine2.y+rEE, posLine2.x+0.2, posLine2.y+rEE);
-  line2.setStroke(color(128));*/
+  line2 = create_wall(posLine.x-0.2, posLine.y-rEE, posLine.x+0.2, posLine.y-rEE);
+  line2.setStroke(color(128));
   
   /* setup framerate speed */
   frameRate(baseFrameRate);
@@ -239,18 +239,8 @@ class SimulationThread implements Runnable{
         }
       }
     }
-    
-    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
-    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
 
     forceSlider.mult(0);
-  
-    if (start == true) {
-      sinTheta += 0.005;
-      forceSlider.add(0.5 * aSinusoid, 0);
-      s.applyForce(forceSlider);
-      s.update();
-    }
     
     if(haplyBoard.data_available()){
       /* GET END-EFFECTOR STATE (TASK SPACE) */
@@ -265,18 +255,13 @@ class SimulationThread implements Runnable{
       fWall.set(0, 0);
       posY.set(0, posEE.y);
       fPos.set(0, 0);
-      fLines.set(0, 0);
+      fLine.set(0, 0);
       
       penWall.set(0, (posWall.y - (posEE.y + rEE)));
-      penLine1.set(0, (posLine1.y - posEE.y));
       /*
       penX.set(4000 * (posEE.x + rEE) - worldPixelWidth/2, 0);
       penY.set(0, 4000 * (posEE.y + rEE) - worldPixelHeight/2);
       */
-      
-      if(penLine1.y < 0){
-        fLines = fLines.add(penLine1.mult(-50));
-      }
       
       if(penWall.y < 0){
         //fWall = fWall.add(penWall.mult(-kWall));  
@@ -284,20 +269,56 @@ class SimulationThread implements Runnable{
       }
       
       if (start == true) {
-        fPos = fPos.add(s.getVelocity());
+        // fPos = fPos.add(s.getVelocity());
+        fPos.set(1.8, 0);
+        penLine.set(0, (posLine.y - (posEE.y - rEE)));
+        if(penLine.y > 0){
+          // fLine = fLine.add(penLine.mult(-kWall));  
+        }
       }
       
       // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
- 
-      // fEE = (fWall.copy()).mult(-1);
+      
+      // fPos can't be over 2
+      if (fPos.x > 2.0) {
+        fPos.set(2, 0);
+      }
+      if (fPos.x < -2.0) {
+        fPos.set(-2, 0);
+      }
+      // is the cursor in the rest zone?
+      if (posEE.x < -0.01 || posEE.x > 0.01) {
+        fEE = (fWall.copy().add(fLine).add(fPos)).mult(-1);
+      }
+      else {
+        fEE = (fWall.copy().add(fLine)).mult(-1);
+      }
+            
       // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
-      fEE = fPos.copy().mult(5000);
+      // fEE = fPos.copy().mult(5000);
       fEE.set(graphics_to_device(fEE));
       /* end haptic wall force calculation */
     }
     
     //fEE.set(0, 0);
-    print(fEE.mag(), " ");
+    
+    float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
+    // print(nf(posEE.x, 0, 3), " ");
+    // print(nf(cursorPercentage, 0, 2), " ");
+    
+    aSinusoid = sinSwitch * (sin(sinTheta) * 0.00000135); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+    // 0.00000135 parcourt bien tout en x avec sinTheta += 0.005
+    
+    if (start == true) {
+      sinTheta += 0.005;
+      forceSlider.add(0.5 * aSinusoid, 0);
+      s.applyForce(forceSlider);
+      if (posEE.x < -0.01 || posEE.x > 0.01) {
+        s.applyUserForce(cursorPercentage);
+      }
+      
+      s.update();
+    }
     
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
@@ -362,6 +383,11 @@ class Slider {
     acceleration.mult(0);
   }
   
+  void applyUserForce(float percentage) {
+    this.applyForce(velocity.mult(-0.000000001 * percentage));
+    print(velocity.mult(-0.000000001 * percentage));
+  }
+  
   void applyForce(PVector force) {
     acceleration.add(force);
   }
@@ -411,7 +437,7 @@ void update_animation(float th1, float th2, float xE, float yE){
   pGraph.setVertex(3, deviceOrigin.x + lAni*cos(th2), deviceOrigin.y + lAni*sin(th2));
   pGraph.setVertex(2, deviceOrigin.x + xE, deviceOrigin.y + yE);
   
-  PShape circle = createShape(ELLIPSE, worldPixelWidth/2, worldPixelHeight/2, radius, radius);
+  PShape circle = createShape(ELLIPSE, worldPixelWidth/2, 0.09 * pixelsPerMeter, radius, radius);
   circle.noFill();
   circle.stroke(0);
   circle.strokeWeight(3);
@@ -426,9 +452,8 @@ void update_animation(float th1, float th2, float xE, float yE){
   
   shape(pGraph);
   shape(joint);
-  /*shape(wall);
-  shape(line1);
-  shape(line2);*/
+  shape(wall);
+  shape(line2);
   shape(circle);
   shape(sliderCursor);
   
