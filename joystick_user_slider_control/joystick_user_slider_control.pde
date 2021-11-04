@@ -84,6 +84,8 @@ PVector accelerationSlider = new PVector(0, 0); // acceleration
 PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
 
+PVector magneticForce = new PVector(0, 0);
+
 float sinTheta = 0;
 //boolean 
 int sinSwitch = 1;
@@ -295,16 +297,8 @@ class SimulationThread implements Runnable{
         fEE = (fWall.copy().add(fLine)).mult(-1);
       }
       
-      // cursorPercentage is the user's position explained 
-      float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
-      if (cursorPercentage < -1) {
-        cursorPercentage = -1;
-      }
-      if (cursorPercentage > 1) {
-        cursorPercentage = 1;
-      }
-      
       float f = 1000;
+      magneticForce.set(0.0001, 0);
       
       // aSinusoid = -pow(0.005, 2) * sin(sinTheta) * 0.000000675;
       
@@ -315,16 +309,58 @@ class SimulationThread implements Runnable{
         sinTheta += 0.005;
         forceSlider.add(aSinusoid, 0);
         
+        // cursorPercentage is the user's position explained 
+        float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
+        
+        if (cursorPercentage < -1) {
+          cursorPercentage = -1;
+        }
+        if (cursorPercentage > 1) {
+          cursorPercentage = 1;
+        }
+        
+        if (abs(cursorPercentage) <= 0.3) {
+          // non-convergent zone
+          
+          userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
+        }
+        if (abs(cursorPercentage) <= 0.85) {
+          // convergent zone
+          if (cursorPercentage >= 0) {
+            // attracted to the right
+            userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
+          } else {
+            // attracted to the left
+             userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
+          }
+        }
+        if (abs(cursorPercentage) > 0.85) {
+          // maximal attraction zone, here, the user force will surpass fSlider no matter what, the user's orders are more important than the actual orders
+          /*
+          if (cursorPercentage >= 0) {
+            // attracted to the right
+            // userForceSlider = superior to fSlider even if its in the opposite direction to prevent it from moving
+          } else {
+            // attracted to the left
+            
+          }
+          */
+          userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
+        }
+        
         float velocityAccelerationRatio = 0;
  
         // if the cursos is out the rest zone, then the user is expressing a force
         if (posEE.x < -0.01 || posEE.x > 0.01) {
+          /*
           userForceSlider = forceSlider.copy();
           userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
           forceSlider = userForceSlider;
+          */
+          forceSlider.add(userForceSlider);
         }
 
-        print("Ratio: ", s.getVelocity().x / forceSlider.x, " ");
+        // print("Ratio: ", s.getVelocity().x / forceSlider.x, " ");
         s.applyForce(forceSlider);
         s.update();
       }
@@ -386,17 +422,16 @@ class Slider {
   }
   
   void update() {
-    // the velocity must be bounded: VALUE NEED TO BE WELL DEFINED
-    if (velocity.x < 1) {
-      velocity.add(acceleration);
-    }
-    
-    // if the slider must go off the limits, velocity is still calculated but the location stays the same
+    // if the slider must go off the limits, the location stays the same and velocity needs to be stopped until it accelerates in a proper direction
     if (this.location.x + this.velocity.x < -0.085) {
       this.location.set(-0.085, 0.13);
+      this.velocity.set(0, 0);
     } else if (this.location.x + this.velocity.x > 0.085) {
       this.location.set(0.085, 0.13);
+      this.velocity.set(0, 0);
     } else {
+      // the velocity must be bounded
+      velocity.add(acceleration);
       location.add(velocity);
     } 
     acceleration.mult(0);
