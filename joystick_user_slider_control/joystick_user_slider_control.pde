@@ -304,21 +304,27 @@ class SimulationThread implements Runnable{
         cursorPercentage = 1;
       }
       
+      float f = 1000;
+      
+      // aSinusoid = -pow(0.005, 2) * sin(sinTheta) * 0.000000675;
+      
       aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
       if (start == true) {
         sinTheta += 0.005;
         forceSlider.add(aSinusoid, 0);
+        
+        float velocityAccelerationRatio = 0;
  
         // if the cursos is out the rest zone, then the user is expressing a force
         if (posEE.x < -0.01 || posEE.x > 0.01) {
-          // s.applyUserForce(cursorPercentage);
           userForceSlider = forceSlider.copy();
           userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
           forceSlider = userForceSlider;
         }
 
+        print("Ratio: ", s.getVelocity().x / forceSlider.x, " ");
         s.applyForce(forceSlider);
         s.update();
       }
@@ -395,11 +401,6 @@ class Slider {
     } 
     acceleration.mult(0);
     // print(" x: ", this.velocity.x);
-  }
-  
-  void applyUserForce(float percentage) {
-    // this.applyForce(velocity.mult(-0.000000001 * percentage));
-    this.applyForce(velocity.mult(percentage));
   }
   
   void applyForce(PVector force) {
