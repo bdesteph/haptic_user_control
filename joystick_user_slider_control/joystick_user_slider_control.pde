@@ -85,6 +85,9 @@ PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
 PVector sumUserForceSlider = new PVector(0, 0);
 
+float velocity = 0;
+int countvelocity = 0;
+
 PVector magneticForce = new PVector(0, 0);
 
 float sinTheta = 0;
@@ -233,6 +236,7 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
+          print("PHASE ");
         }
       }
       else {
@@ -240,6 +244,7 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
+          print("PHASE ");
         }
       }
     }
@@ -295,11 +300,12 @@ class SimulationThread implements Runnable{
       }
       
       float f = 1000;
-      magneticForce.set(0.00001, 0);
+      magneticForce.set(0.000001, 0); // 0.00001
       
-      // aSinusoid = -pow(0.005, 2) * sin(sinTheta) * 0.000000675;
-      
-      aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+      aSinusoid = (-pow(0.005, 2) * sin(sinTheta));
+
+      // aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+      // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
       if (start == true) {
@@ -318,10 +324,10 @@ class SimulationThread implements Runnable{
 
         if (cursorPercentage >= 0) {
             // attracted to the right
-            userForceSlider = magneticForce.mult(pow(cursorPercentage, 2) * 0.1);
+            userForceSlider = magneticForce.mult(pow(cursorPercentage, 2));
         } else {
             // attracted to the left
-             userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2) * 0.1);
+             userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2));
         }
 
         // if the cursor is out the rest zone, then the user is expressing a force
@@ -340,6 +346,9 @@ class SimulationThread implements Runnable{
 
         s.applyForce(forceSlider);
         s.update();
+        
+        velocity += s.getVelocity().x;
+        countvelocity += 1;
       }
             
       // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
@@ -350,7 +359,6 @@ class SimulationThread implements Runnable{
 
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
-    
   
     renderingForce = false;
   }
