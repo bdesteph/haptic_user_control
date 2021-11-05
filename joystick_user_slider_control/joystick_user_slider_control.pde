@@ -83,6 +83,7 @@ float mSlider = 0.15; // mass in kg
 PVector accelerationSlider = new PVector(0, 0); // acceleration
 PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
+PVector sumUserForceSlider = new PVector(0, 0);
 
 PVector magneticForce = new PVector(0, 0);
 
@@ -358,6 +359,10 @@ class SimulationThread implements Runnable{
           forceSlider = userForceSlider;
           */
           forceSlider.add(userForceSlider);
+          sumUserForceSlider.add(userForceSlider);
+        } else {
+          s.applyForce(sumUserForceSlider.mult(-1));
+          sumUserForceSlider.mult(0);
         }
 
         // print("Ratio: ", s.getVelocity().x / forceSlider.x, " ");
@@ -426,9 +431,11 @@ class Slider {
     if (this.location.x + this.velocity.x < -0.085) {
       this.location.set(-0.085, 0.13);
       this.velocity.set(0, 0);
+      sumUserForceSlider.mult(0);
     } else if (this.location.x + this.velocity.x > 0.085) {
       this.location.set(0.085, 0.13);
       this.velocity.set(0, 0);
+      sumUserForceSlider.mult(0);
     } else {
       // the velocity must be bounded
       velocity.add(acceleration);
