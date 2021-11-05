@@ -210,7 +210,7 @@ class SimulationThread implements Runnable{
     /* sinusoid force simulation part */ 
     float aSinusoid;
     
-    /* this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
+    /* TO CHANGE this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
     
     // first part of the sine wave
     if (firstPart == true) {
@@ -262,10 +262,6 @@ class SimulationThread implements Runnable{
       fLine.set(0, 0);
       
       penWall.set(0, (posWall.y - (posEE.y + rEE)));
-      /*
-      penX.set(4000 * (posEE.x + rEE) - worldPixelWidth/2, 0);
-      penY.set(0, 4000 * (posEE.y + rEE) - worldPixelHeight/2);
-      */
       
       if(penWall.y < 0){
         //fWall = fWall.add(penWall.mult(-kWall));  
@@ -274,22 +270,22 @@ class SimulationThread implements Runnable{
       
       if (start == true) {
         // fPos = fPos.add(s.getVelocity());
-        fPos.set(1.8, 0);
         penLine.set(0, (posLine.y - (posEE.y - rEE)));
         if(penLine.y > 0){
           // fLine = fLine.add(penLine.mult(-kWall));  
         }
+        
+        // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
+      
+        // fPos can't be over 2 because it would be to much
+        if (fPos.x > 2.0) {
+          fPos.set(2, 0);
+        }
+        if (fPos.x < -2.0) {
+          fPos.set(-2, 0);
+        }
       }
       
-      // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
-      
-      // fPos can't be over 2 because it would be to much
-      if (fPos.x > 2.0) {
-        fPos.set(2, 0);
-      }
-      if (fPos.x < -2.0) {
-        fPos.set(-2, 0);
-      }
       // is the cursor in the rest zone? if no, then the slider force will apply as well on the cursor
       if (posEE.x < -0.01 || posEE.x > 0.01) {
         fEE = (fWall.copy().add(fLine).add(fPos)).mult(-1);
@@ -299,7 +295,7 @@ class SimulationThread implements Runnable{
       }
       
       float f = 1000;
-      magneticForce.set(0.0001, 0);
+      magneticForce.set(0.00001, 0);
       
       // aSinusoid = -pow(0.005, 2) * sin(sinTheta) * 0.000000675;
       
@@ -311,7 +307,7 @@ class SimulationThread implements Runnable{
         forceSlider.add(aSinusoid, 0);
         
         // cursorPercentage is the user's position explained 
-        float cursorPercentage = (posEE.x - x_start) / (x_max - x_start);
+        float cursorPercentage = (posEE.x + rEE - x_start) / (x_max - x_start);
         
         if (cursorPercentage < -1) {
           cursorPercentage = -1;
@@ -319,39 +315,16 @@ class SimulationThread implements Runnable{
         if (cursorPercentage > 1) {
           cursorPercentage = 1;
         }
-        
-        if (abs(cursorPercentage) <= 0.3) {
-          // non-convergent zone
-          
-          userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
-        }
-        if (abs(cursorPercentage) <= 0.85) {
-          // convergent zone
-          if (cursorPercentage >= 0) {
+
+        if (cursorPercentage >= 0) {
             // attracted to the right
-            userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
-          } else {
+            userForceSlider = magneticForce.mult(pow(cursorPercentage, 2) * 0.1);
+        } else {
             // attracted to the left
-             userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
-          }
+             userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2) * 0.1);
         }
-        if (abs(cursorPercentage) > 0.85) {
-          // maximal attraction zone, here, the user force will surpass fSlider no matter what, the user's orders are more important than the actual orders
-          /*
-          if (cursorPercentage >= 0) {
-            // attracted to the right
-            // userForceSlider = superior to fSlider even if its in the opposite direction to prevent it from moving
-          } else {
-            // attracted to the left
-            
-          }
-          */
-          userForceSlider = magneticForce.mult(cursorPercentage * 0.01);
-        }
-        
-        float velocityAccelerationRatio = 0;
- 
-        // if the cursos is out the rest zone, then the user is expressing a force
+
+        // if the cursor is out the rest zone, then the user is expressing a force
         if (posEE.x < -0.01 || posEE.x > 0.01) {
           /*
           userForceSlider = forceSlider.copy();
@@ -365,19 +338,16 @@ class SimulationThread implements Runnable{
           sumUserForceSlider.mult(0);
         }
 
-        // print("Ratio: ", s.getVelocity().x / forceSlider.x, " ");
         s.applyForce(forceSlider);
         s.update();
       }
             
       // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
-      // fEE = fPos.copy().mult(5000);
+
       fEE.set(graphics_to_device(fEE));
       /* end haptic wall force calculation */
     }
-    
-    //fEE.set(0, 0);
-    
+
     torques.set(widgetOne.set_device_torques(fEE.array()));
     widgetOne.device_write_torques();
     
@@ -529,7 +499,7 @@ PShape create_slider(float x) {
   
   return createShape(RECT,deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
 }
-/*
+
 PVector pos_to_grid(PVector position){
    float posX = position.x/0.01;
    float posY = position.y/0.0075;
@@ -562,7 +532,7 @@ PVector grid_to_force(PVector grid){
   
   return force;
 }
-*/
+
 PVector device_to_graphics(PVector deviceFrame){
   return deviceFrame.set(-deviceFrame.x, deviceFrame.y);
 }
