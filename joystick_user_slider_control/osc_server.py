@@ -25,21 +25,23 @@ def useValue(unused_addr, message1):
 # use the slider's value (exemple: make the sound it must do)
     print('got it ')
 
+def sendPosition(unused_addr):
+# if (slider_focused is True):
+    client.send_message("/position", "{}".format("1"))
+    print("sent msg")
+
 dispatcher = dispatcher.Dispatcher()
 
 # This maps a message ID to a function.
 # When a message with a given ID is received, the given function is run:
 dispatcher.map("/sliderFocus",sliderFocus)
+dispatcher.map("/getPosition",sendPosition)
 dispatcher.map("/effectivePosition",useValue)
 
 async def loop():
   finished = False
 
   while (finished == False):
-    # if the slider is focused in Processing, send the position that it is taking
-    if slider_focused:
-        client.send_message("/position", "{}".format("1"))
-        print("OK ")
     await asyncio.sleep(1)
 
 ip = "127.0.0.1"

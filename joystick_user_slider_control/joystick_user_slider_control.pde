@@ -169,7 +169,7 @@ void setup(){
   myRemoteLocation = new NetAddress("127.0.0.1", 5005);
   
   /* OSC server setup */
-  oscP5 = new OscP5(this,1234);
+  // oscP5 = new OscP5(this,1234);
   oscP52 = new OscP5(this,1234);
   
   /* visual elements setup */
@@ -320,6 +320,9 @@ class SimulationThread implements Runnable{
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
       if (start == true) {
+        OscMessage myMessage = new OscMessage("/getPosition");
+        oscP52.send(myMessage, myRemoteLocation);
+        
         sinTheta += 0.005;
         forceSlider.add(aSinusoid, 0);
         
