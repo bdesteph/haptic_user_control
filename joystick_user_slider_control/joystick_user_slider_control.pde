@@ -16,6 +16,8 @@
 import processing.serial.*;
 import static java.util.concurrent.TimeUnit.*;
 import java.util.concurrent.*;
+import oscP5.*;
+import netP5.*;
 /* end library imports *************************************************************************************************/  
 
 
@@ -100,6 +102,10 @@ boolean sinPositive = true;
 float x_start = 0.01;
 float x_max = 0.091;
 
+/* OSC server elements */
+OscP5 oscP5;
+OscP5 oscP52;
+NetAddress myRemoteLocation;
 
 /* generic data for a 2DOF device */
 /* joint space */
@@ -160,6 +166,11 @@ void setup(){
   
   widgetOne.device_set_parameters();
   
+  myRemoteLocation = new NetAddress("127.0.0.1", 5005);
+  
+  /* OSC server setup */
+  oscP5 = new OscP5(this,1234);
+  oscP52 = new OscP5(this,1234);
   
   /* visual elements setup */
   background(0);
@@ -236,7 +247,7 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
-          print("PHASE ");
+          // print("PHASE ");
         }
       }
       else {
@@ -244,7 +255,7 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
-          print("PHASE ");
+          // print("PHASE ");
         }
       }
     }
@@ -550,9 +561,18 @@ PVector graphics_to_device(PVector graphicsFrame){
   return graphicsFrame.set(-graphicsFrame.x, graphicsFrame.y);
 }
 
+void oscEvent(OscMessage theOscMessage) {
+  if(theOscMessage.checkAddrPattern("/position")==true) {
+    print("got it ");
+   }
+}
+
 void keyPressed() {
   if (start == false) {
     start = true;
+    OscMessage myMessage = new OscMessage("/sliderFocus");
+    myMessage.add(0);
+    oscP52.send(myMessage, myRemoteLocation);
   }
   else {
     start = false;
