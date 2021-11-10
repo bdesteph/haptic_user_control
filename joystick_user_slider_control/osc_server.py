@@ -23,12 +23,12 @@ def sliderFocus(unused_addr, slider_number):
 
 def useValue(unused_addr, message1):
 # use the slider's value (exemple: make the sound it must do)
-    print('got it ')
+    print('value: ', message1)
 
-def sendPosition(unused_addr):
+def sendPosition(unused_addr, message1):
 # if (slider_focused is True):
-    client.send_message("/position", "{}".format("1"))
-    print("sent msg")
+    client.send_message("/position", "{}".format(message1))
+    print(message1)
 
 dispatcher = dispatcher.Dispatcher()
 

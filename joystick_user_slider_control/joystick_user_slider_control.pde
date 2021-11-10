@@ -87,6 +87,9 @@ PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
 PVector sumUserForceSlider = new PVector(0, 0);
 
+FloatList sliderPositions = new FloatList();
+int positionCounter = 0;
+
 float velocity = 0;
 int countvelocity = 0;
 
@@ -125,6 +128,7 @@ final int         worldPixelWidth                     = 800;
 final int         worldPixelHeight                    = 650;
 
 boolean start = false;
+boolean firstElement = true;
 
 /* graphical elements */
 PShape pGraph, joint, endEffector, sliderCursor;
@@ -223,6 +227,7 @@ class SimulationThread implements Runnable{
     
     /* sinusoid force simulation part */ 
     float aSinusoid;
+    float posSinusoid;
     
     /* TO CHANGE this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
     
@@ -314,55 +319,74 @@ class SimulationThread implements Runnable{
       magneticForce.set(0.000001, 0); // 0.00001
       
       aSinusoid = (-pow(0.005, 2) * sin(sinTheta));
+      posSinusoid = sin(sinTheta);
 
       // aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
       if (start == true) {
-        OscMessage myMessage = new OscMessage("/getPosition");
-        oscP52.send(myMessage, myRemoteLocation);
-        
-        sinTheta += 0.005;
-        forceSlider.add(aSinusoid, 0);
-        
-        // cursorPercentage is the user's position explained 
-        float cursorPercentage = (posEE.x + rEE - x_start) / (x_max - x_start);
-        
-        if (cursorPercentage < -1) {
-          cursorPercentage = -1;
-        }
-        if (cursorPercentage > 1) {
-          cursorPercentage = 1;
-        }
+        if (firstElement) {
+          OscMessage myMessage = new OscMessage("/getPosition");
+          myMessage.add(aSinusoid);
+          oscP52.send(myMessage, myRemoteLocation);
 
-        if (cursorPercentage >= 0) {
-            // attracted to the right
-            userForceSlider = magneticForce.mult(pow(cursorPercentage, 2));
-        } else {
-            // attracted to the left
-             userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2));
+          sinTheta += 0.005;
+          forceSlider.add(aSinusoid, 0);
+          firstElement = false;
+          print("first element ");
         }
-
-        // if the cursor is out the rest zone, then the user is expressing a force
-        if (posEE.x < -0.01 || posEE.x > 0.01) {
-          /*
-          userForceSlider = forceSlider.copy();
-          userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
-          forceSlider = userForceSlider;
-          */
-          forceSlider.add(userForceSlider);
-          sumUserForceSlider.add(userForceSlider);
-        } else {
-          s.applyForce(sumUserForceSlider.mult(-1));
-          sumUserForceSlider.mult(0);
-        }
-
-        s.applyForce(forceSlider);
-        s.update();
+        print(" AH ");
+        if (sliderPositions.size() > positionCounter) {
+          // forceSlider.add(sliderPositions.get(positionCounter), 0);
+          // print(sliderPositions.get(positionCounter));
+          print("lol ");
+          
+          positionCounter += 1;
+          sinTheta += 0.005;
+          
+          OscMessage myMessage = new OscMessage("/getPosition");
+          myMessage.add(aSinusoid);
+          oscP52.send(myMessage, myRemoteLocation);
+          
+          forceSlider.add(sliderPositions.get(positionCounter), 0);
+          // forceSlider.add(aSinusoid, 0);
         
-        velocity += s.getVelocity().x;
-        countvelocity += 1;
+          // cursorPercentage is the user's position explained 
+          float cursorPercentage = (posEE.x + rEE - x_start) / (x_max - x_start);
+          
+          if (cursorPercentage < -1) {
+            cursorPercentage = -1;
+          }
+          if (cursorPercentage > 1) {
+            cursorPercentage = 1;
+          }
+  
+          if (cursorPercentage >= 0) {
+              // attracted to the right
+              userForceSlider = magneticForce.mult(pow(cursorPercentage, 2));
+          } else {
+              // attracted to the left
+               userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2));
+          }
+  
+          // if the cursor is out the rest zone, then the user is expressing a force
+          if (posEE.x < -0.01 || posEE.x > 0.01) {
+            /*
+            userForceSlider = forceSlider.copy();
+            userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
+            forceSlider = userForceSlider;
+            */
+            forceSlider.add(userForceSlider);
+            sumUserForceSlider.add(userForceSlider);
+          } else {
+            s.applyForce(sumUserForceSlider.mult(-1));
+            sumUserForceSlider.mult(0);
+          }
+  
+          s.applyForce(forceSlider);
+          s.update();
+        }
       }
             
       // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
@@ -566,7 +590,9 @@ PVector graphics_to_device(PVector graphicsFrame){
 
 void oscEvent(OscMessage theOscMessage) {
   if(theOscMessage.checkAddrPattern("/position")==true) {
-    print("got it ");
+    float pos = float(theOscMessage.get(0).stringValue());
+    sliderPositions.append(pos);
+    print("positionCount: ", positionCounter, " sliderPositions size: ", sliderPositions.size());
    }
 }
 
