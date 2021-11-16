@@ -89,6 +89,7 @@ PVector sumUserForceSlider = new PVector(0, 0);
 
 FloatList sliderPositions = new FloatList();
 FloatList sliderSpeeds = new FloatList();
+FloatList sliderAccelerations = new FloatList();
 int positionCounter = 0;
 
 float velocity = 0;
@@ -258,7 +259,6 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
-          // print("PHASE ");
         }
       }
       else {
@@ -266,7 +266,6 @@ class SimulationThread implements Runnable{
           firstPart = true;
           sinPositive = true;
           sinSwitch = -1 * sinSwitch;
-          // print("PHASE ");
         }
       }
     }
@@ -355,7 +354,7 @@ class SimulationThread implements Runnable{
         }
         if (sliderPositions.size() >= positionCounter+2) {
           // forceSlider.add(sliderPositions.get(positionCounter), 0);
-          print(" In, size: ", sliderPositions.size(), " counter: ", positionCounter);
+          // print(" In, size: ", sliderAccelerations.size(), " counter: ", positionCounter);
           // print(millis() - last_timer, " ");
           last_timer = millis();
           sinTheta += 0.005;
@@ -364,6 +363,9 @@ class SimulationThread implements Runnable{
           myMessage.add(aSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
+          if (positionCounter > 0) {
+            print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
+          }
           
           forceSlider.add(sliderPositions.get(positionCounter), 0);
           // forceSlider.add(aSinusoid, 0);
@@ -603,10 +605,13 @@ void oscEvent(OscMessage theOscMessage) {
   if(theOscMessage.checkAddrPattern("/position")==true) {
     float pos = float(theOscMessage.get(0).stringValue());
     sliderPositions.append(pos);
-    if (sliderPositions.size() > 2) {
+    if (sliderPositions.size() > 1) {
       float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 0.001; // v = d(p0p1)/dt en m/s
       sliderSpeeds.append(speed);
-      print(
+      if (sliderPositions.size() > 2) {
+        float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 0.001;
+        sliderAccelerations.append(acceleration);
+      }
     }
    }
 }
