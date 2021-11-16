@@ -88,6 +88,7 @@ PVector userForceSlider = new PVector(0, 0);
 PVector sumUserForceSlider = new PVector(0, 0);
 
 FloatList sliderPositions = new FloatList();
+FloatList sliderSpeeds = new FloatList();
 int positionCounter = 0;
 
 float velocity = 0;
@@ -129,6 +130,11 @@ final int         worldPixelHeight                    = 650;
 
 boolean start = false;
 boolean firstElement = true;
+boolean secondElement = false;
+
+int last_timer;
+int max_time = 0;
+int deltaTime;
 
 /* graphical elements */
 PShape pGraph, joint, endEffector, sliderCursor;
@@ -334,24 +340,34 @@ class SimulationThread implements Runnable{
           sinTheta += 0.005;
           forceSlider.add(aSinusoid, 0);
           firstElement = false;
-          print("first element ");
+          secondElement = true; 
         }
-        print(" AH ");
-        if (sliderPositions.size() > positionCounter) {
-          // forceSlider.add(sliderPositions.get(positionCounter), 0);
-          // print(sliderPositions.get(positionCounter));
-          print("lol ");
-          
-          positionCounter += 1;
-          sinTheta += 0.005;
-          
+        if (secondElement) {
           OscMessage myMessage = new OscMessage("/getPosition");
           myMessage.add(aSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
+          last_timer = millis();
+
+          sinTheta += 0.005;
+          forceSlider.add(aSinusoid, 0);
+          secondElement = false;
+        }
+        if (sliderPositions.size() >= positionCounter+2) {
+          // forceSlider.add(sliderPositions.get(positionCounter), 0);
+          print(" In, size: ", sliderPositions.size(), " counter: ", positionCounter);
+          // print(millis() - last_timer, " ");
+          last_timer = millis();
+          sinTheta += 0.005;
+
+          OscMessage myMessage = new OscMessage("/getPosition");
+          myMessage.add(aSinusoid);
+          oscP52.send(myMessage, myRemoteLocation);
+          
+          
           forceSlider.add(sliderPositions.get(positionCounter), 0);
           // forceSlider.add(aSinusoid, 0);
-        
+          positionCounter += 1;
           // cursorPercentage is the user's position explained 
           float cursorPercentage = (posEE.x + rEE - x_start) / (x_max - x_start);
           
@@ -458,7 +474,6 @@ class Slider {
       location.add(velocity);
     } 
     acceleration.mult(0);
-    // print(" x: ", this.velocity.x);
   }
   
   void applyForce(PVector force) {
@@ -515,8 +530,6 @@ void update_animation(float th1, float th2, float xE, float yE){
   circle.stroke(0);
   circle.strokeWeight(3);
   
-  // print(s.getX());
-  
   // sliderCursor = s.display();
   sliderCursor = create_slider(s.getX());
   sliderCursor.setStroke(color(0));
@@ -551,8 +564,6 @@ PVector pos_to_grid(PVector position){
    float posY = position.y/0.0075;
    
    PVector grid = new PVector(posX+10, posY);
-   
-   // print("X: ", posX, " Y: ", posY, " ");
    
    return grid;
 }
@@ -592,7 +603,11 @@ void oscEvent(OscMessage theOscMessage) {
   if(theOscMessage.checkAddrPattern("/position")==true) {
     float pos = float(theOscMessage.get(0).stringValue());
     sliderPositions.append(pos);
-    print("positionCount: ", positionCounter, " sliderPositions size: ", sliderPositions.size());
+    if (sliderPositions.size() > 2) {
+      float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 0.001; // v = d(p0p1)/dt en m/s
+      sliderSpeeds.append(speed);
+      print(
+    }
    }
 }
 
