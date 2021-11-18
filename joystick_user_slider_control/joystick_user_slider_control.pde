@@ -1,148 +1,3 @@
-/**
- **********************************************************************************************************************
- * @file       sketch_2_Hello_Wall.pde
- * @author     Steve Ding, Colin Gallacher
- * @version    V3.0.0
- * @date       08-January-2021
- * @brief      Wall haptic example with programmed physics for a haptic wall 
- **********************************************************************************************************************
- * @attention
- *
- *
- **********************************************************************************************************************
- */
- 
-  /* library imports *****************************************************************************************************/ 
-import processing.serial.*;
-import static java.util.concurrent.TimeUnit.*;
-import java.util.concurrent.*;
-import oscP5.*;
-import netP5.*;
-/* end library imports *************************************************************************************************/  
-
-
-/* scheduler definition ************************************************************************************************/ 
-private final ScheduledExecutorService scheduler      = Executors.newScheduledThreadPool(1);
-/* end scheduler definition ********************************************************************************************/ 
-
-
-
-/* device block definitions ********************************************************************************************/
-Board             haplyBoard;
-Device            widgetOne;
-Mechanisms        pantograph;
-
-byte              widgetOneID                         = 5;
-int               CW                                  = 0;
-int               CCW                                 = 1;
-boolean           renderingForce                     = false;
-/* end device block definition *****************************************************************************************/
-
-
-
-/* framerate definition ************************************************************************************************/
-long              baseFrameRate                       = 120;
-/* end framerate definition ********************************************************************************************/ 
-
-
-
-/* elements definition *************************************************************************************************/
-
-/* Screen and world setup parameters */
-float             pixelsPerMeter                      = 4000.0;
-float             radsPerDegree                       = 0.01745;
-
-/* pantagraph link parameters in meters */
-float             l                                   = 0.07;
-float             L                                   = 0.09;
-
-
-/* end effector radius in meters */
-float             rEE                                 = 0.006;
-
-/* joystick circle parameter */
-int radius = 100;
-PVector penX = new PVector(0, 0);
-PVector penY = new PVector(0, 0);
-
-/* virtual wall parameter  */
-float             kWall                               = 450;
-float             kLine1                               = 50;
-float             kLine2                               = 100;
-PVector           fWall                               = new PVector(0, 0);
-PVector           fPos                           = new PVector(0, 0);
-PVector           fLine                               = new PVector(0, 0);
-PVector           penWall                             = new PVector(0, 0);
-PVector           penLine                             = new PVector(0, 0);
-PVector           posWall                             = new PVector(0.01, 0.10);
-
-PVector           posLine                               = new PVector(0.01, 0.08);
-
-/* slider parameters */
-Slider s;
-float xSlider; // x position
-float mSlider = 0.15; // mass in kg
-PVector accelerationSlider = new PVector(0, 0); // acceleration
-PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
-PVector userForceSlider = new PVector(0, 0);
-PVector sumUserForceSlider = new PVector(0, 0);
-
-FloatList sliderPositions = new FloatList();
-FloatList sliderSpeeds = new FloatList();
-FloatList sliderAccelerations = new FloatList();
-int positionCounter = 0;
-
-float velocity = 0;
-int countvelocity = 0;
-
-PVector magneticForce = new PVector(0, 0);
-
-float sinTheta = 0;
-//boolean 
-int sinSwitch = 1;
-boolean firstPart = true;
-boolean sinPositive = true;
-
-/* joystick parameters */
-float x_start = 0.01;
-float x_max = 0.091;
-
-/* OSC server elements */
-OscP5 oscP5;
-OscP5 oscP52;
-NetAddress myRemoteLocation;
-
-/* generic data for a 2DOF device */
-/* joint space */
-PVector           angles                              = new PVector(0, 0);
-PVector           torques                             = new PVector(0, 0);
-
-/* task space */
-PVector           posEE                               = new PVector(0, 0);
-PVector posY = new PVector(0, 0); 
-PVector           fEE                                 = new PVector(0, 0); 
-
-/* device graphical position */
-PVector           deviceOrigin                        = new PVector(0, 0);
-
-/* World boundaries reference */
-final int         worldPixelWidth                     = 800;
-final int         worldPixelHeight                    = 650;
-
-boolean start = false;
-boolean firstElement = true;
-boolean secondElement = false;
-
-int last_timer;
-int max_time = 0;
-int deltaTime;
-
-/* graphical elements */
-PShape pGraph, joint, endEffector, sliderCursor;
-PShape wall, line2, circle;
-/* end elements definition *********************************************************************************************/ 
-
-
 /* setup section *******************************************************************************************************/
 void setup(){
   /* put setup code here, run once: */
@@ -202,6 +57,7 @@ void setup(){
   /* setup framerate speed */
   frameRate(baseFrameRate);
   
+  /* create the Slider object */
   s = new Slider(-0.085, 0.13);
   
   /* setup simulation thread to run at 1kHz */ 
@@ -209,6 +65,8 @@ void setup(){
   scheduler.scheduleAtFixedRate(st, 1, 1, MILLISECONDS);
 }
 /* end setup section ***************************************************************************************************/
+
+
 
 /* With a screen width of 800 x 650px/m, posEE.x goes from -0.096 to 0.096,posEE.y from 0.022 to 0.15
 
@@ -323,17 +181,18 @@ class SimulationThread implements Runnable{
       float f = 1000;
       magneticForce.set(0.000001, 0); // 0.00001
       
-      aSinusoid = (-pow(0.005, 2) * sin(sinTheta));
-      posSinusoid = sin(sinTheta);
+      aSinusoid = (-pow(0.005, 2) * sin(sinTheta - PI/2) * 0.085);
+      posSinusoid = sin(sinTheta - PI/2) * 0.085;
 
       // aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
       if (start == true) {
+        /* These two first ifs ensures that we'll have the first 2 positions to calculate the first acceleration we need to start */
         if (firstElement) {
           OscMessage myMessage = new OscMessage("/getPosition");
-          myMessage.add(aSinusoid);
+          myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
 
           sinTheta += 0.005;
@@ -343,7 +202,7 @@ class SimulationThread implements Runnable{
         }
         if (secondElement) {
           OscMessage myMessage = new OscMessage("/getPosition");
-          myMessage.add(aSinusoid);
+          myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
           last_timer = millis();
@@ -352,24 +211,24 @@ class SimulationThread implements Runnable{
           forceSlider.add(aSinusoid, 0);
           secondElement = false;
         }
+        /* If we are 2 positions ahead, we can calculate the current acceleration so we can continue */
         if (sliderPositions.size() >= positionCounter+2) {
-          // forceSlider.add(sliderPositions.get(positionCounter), 0);
-          // print(" In, size: ", sliderAccelerations.size(), " counter: ", positionCounter);
           // print(millis() - last_timer, " ");
           last_timer = millis();
           sinTheta += 0.005;
 
           OscMessage myMessage = new OscMessage("/getPosition");
-          myMessage.add(aSinusoid);
+          myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
           if (positionCounter > 0) {
-            print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
+            // print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
           }
           
-          forceSlider.add(sliderPositions.get(positionCounter), 0);
-          // forceSlider.add(aSinusoid, 0);
+          // forceSlider.add(sliderPositions.get(positionCounter), 0);
+          forceSlider.add(aSinusoid, 0);
           positionCounter += 1;
+          
           // cursorPercentage is the user's position explained 
           float cursorPercentage = (posEE.x + rEE - x_start) / (x_max - x_start);
           
@@ -401,9 +260,11 @@ class SimulationThread implements Runnable{
             s.applyForce(sumUserForceSlider.mult(-1));
             sumUserForceSlider.mult(0);
           }
-  
+
           s.applyForce(forceSlider);
           s.update();
+
+          // s.setLocation(posSinusoid);
         }
       }
             
@@ -422,195 +283,20 @@ class SimulationThread implements Runnable{
 /* end simulation section **********************************************************************************************/
 
 
-/* helper functions section, place helper functions here ***************************************************************/
-void create_pantagraph(){
-  float lAni = pixelsPerMeter * l;
-  float LAni = pixelsPerMeter * L;
-  float rEEAni = pixelsPerMeter * rEE;
-  
-  pGraph = createShape();
-  pGraph.beginShape();
-  pGraph.fill(255);
-  pGraph.stroke(0);
-  pGraph.strokeWeight(2);
-  
-  pGraph.vertex(deviceOrigin.x, deviceOrigin.y);
-  pGraph.vertex(deviceOrigin.x, deviceOrigin.y);
-  pGraph.vertex(deviceOrigin.x, deviceOrigin.y);
-  pGraph.vertex(deviceOrigin.x, deviceOrigin.y);
-  pGraph.endShape(CLOSE);
-  
-  joint = createShape(ELLIPSE, deviceOrigin.x, deviceOrigin.y, rEEAni, rEEAni);
-  joint.setStroke(color(0));
-  
-  endEffector = createShape(ELLIPSE, deviceOrigin.x, deviceOrigin.y, 2*rEEAni, 2*rEEAni);
-  endEffector.setStroke(color(0));
-  strokeWeight(5);
-  
-}
-
-class Slider {
-  PVector location;
-  PVector velocity;
-  PVector acceleration;
-  
-  Slider(float x, float y) {
-    location = new PVector(x, y);
-    velocity = new PVector(0, 0);
-    acceleration = new PVector(0, 0);  
-  }
-  
-  void update() {
-    // if the slider must go off the limits, the location stays the same and velocity needs to be stopped until it accelerates in a proper direction
-    if (this.location.x + this.velocity.x < -0.085) {
-      this.location.set(-0.085, 0.13);
-      this.velocity.set(0, 0);
-      sumUserForceSlider.mult(0);
-    } else if (this.location.x + this.velocity.x > 0.085) {
-      this.location.set(0.085, 0.13);
-      this.velocity.set(0, 0);
-      sumUserForceSlider.mult(0);
-    } else {
-      // the velocity must be bounded
-      velocity.add(acceleration);
-      location.add(velocity);
-    } 
-    acceleration.mult(0);
-  }
-  
-  void applyForce(PVector force) {
-    acceleration.add(force);
-  }
-  
-  PShape display() {
-    float x = this.location.x;
-    float x1 = pixelsPerMeter * (x - 0.01);
-    float y1 = pixelsPerMeter * (0.083 + rEE);
-    float h = pixelsPerMeter * 0.014;
-    float w = pixelsPerMeter * 0.02;
-  
-    return createShape(RECT, x1, deviceOrigin.y + y1, w, h);
-  }
-  
-  float getX() {
-    return this.location.x;
-  }
-  
-  PVector getVelocity() {
-    return this.velocity;
-  }
-}
-
-PShape create_wall(float x1, float y1, float x2, float y2){
-  x1 = pixelsPerMeter * x1;
-  y1 = pixelsPerMeter * y1;
-  x2 = pixelsPerMeter * x2;
-  y2 = pixelsPerMeter * y2;
-  
-  return createShape(LINE, deviceOrigin.x + x1, deviceOrigin.y + y1, deviceOrigin.x + x2, deviceOrigin.y+y2);
-}
-
-
-void update_animation(float th1, float th2, float xE, float yE){
-  background(255);
-  
-  float lAni = pixelsPerMeter * l;
-  float LAni = pixelsPerMeter * L;
-  
-  xE = pixelsPerMeter * xE;
-  yE = pixelsPerMeter * yE;
-  
-  th1 = 3.14 - th1;
-  th2 = 3.14 - th2;
-  
-  pGraph.setVertex(1, deviceOrigin.x + lAni*cos(th1), deviceOrigin.y + lAni*sin(th1));
-  pGraph.setVertex(3, deviceOrigin.x + lAni*cos(th2), deviceOrigin.y + lAni*sin(th2));
-  pGraph.setVertex(2, deviceOrigin.x + xE, deviceOrigin.y + yE);
-  
-  PShape circle = createShape(ELLIPSE, worldPixelWidth/2, 0.09 * pixelsPerMeter, radius, radius);
-  circle.noFill();
-  circle.stroke(0);
-  circle.strokeWeight(3);
-  
-  // sliderCursor = s.display();
-  sliderCursor = create_slider(s.getX());
-  sliderCursor.setStroke(color(0));
-  sliderCursor.setFill(color(255));
-
-  
-  shape(pGraph);
-  shape(joint);
-  shape(wall);
-  shape(line2);
-  shape(circle);
-  shape(sliderCursor);
-  
-  // ellipse(worldPixelWidth/2, worldPixelHeight/2, 250, 250);
-  
-  
-  translate(xE, yE);
-  shape(endEffector);
-}
-
-PShape create_slider(float x) {
-  float x1 = pixelsPerMeter * (x - 0.01);
-  float y1 = pixelsPerMeter * (0.125 + rEE);
-  float h = pixelsPerMeter * 0.014;
-  float w = pixelsPerMeter * 0.02;
-  
-  return createShape(RECT,deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
-}
-
-PVector pos_to_grid(PVector position){
-   float posX = position.x/0.01;
-   float posY = position.y/0.0075;
-   
-   PVector grid = new PVector(posX+10, posY);
-   
-   return grid;
-}
-
-PVector grid_to_force(PVector grid){
-  //PVector force = new PVector(grid.x - 10, grid.y - 10);
-
-  //float gauss_x = 1/(pow(2*PI, 1/2))*exp(-pow(grid.x - 10, 2)/4);
-  //float gauss_y = 1/(pow(2*PI, 1/2))*exp(-pow(grid.y - 10, 2)/4);
-
-  float gauss_x = (pow(2*PI, 1/2))*exp(-pow(grid.x - 10, 2)/4);
-  float gauss_y = (pow(2*PI, 1/2))*exp(-pow(grid.y - 10, 2)/4);
-
-  PVector force = new PVector(1 - gauss_x, 1 - gauss_y);
-  
-  if (grid.x < 10){
-    force.x = - force.x;
-  }
-  
-  if (grid.y < 10){
-    force.y = - force.y;
-  }
-  
-  return force;
-}
-
-PVector device_to_graphics(PVector deviceFrame){
-  return deviceFrame.set(-deviceFrame.x, deviceFrame.y);
-}
-
-
-PVector graphics_to_device(PVector graphicsFrame){
-  return graphicsFrame.set(-graphicsFrame.x, graphicsFrame.y);
-}
-
 void oscEvent(OscMessage theOscMessage) {
+  /* When we receive a position, we first stock it */
   if(theOscMessage.checkAddrPattern("/position")==true) {
     float pos = float(theOscMessage.get(0).stringValue());
     sliderPositions.append(pos);
+    /* We then calculate the speed it took to get to this position if we have the precedent position */
     if (sliderPositions.size() > 1) {
       float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 0.001; // v = d(p0p1)/dt en m/s
       sliderSpeeds.append(speed);
+      /* And finally we calculate the acceleration it took to get there */
       if (sliderPositions.size() > 2) {
         float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 0.001;
         sliderAccelerations.append(acceleration);
+        print(acceleration, " ");
       }
     }
    }
@@ -628,12 +314,3 @@ void keyPressed() {
   }
   
 }
-
-
-
-/* end helper functions section ****************************************************************************************/
-
-
-
-
- 
