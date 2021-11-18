@@ -181,7 +181,8 @@ class SimulationThread implements Runnable{
       float f = 1000;
       magneticForce.set(0.000001, 0); // 0.00001
       
-      aSinusoid = (-pow(0.005, 2) * sin(sinTheta - PI/2) * 0.085);
+      aSinusoid = (-pow(0.002, 2) * sin(sinTheta - PI/2) * 0.085);
+      
       posSinusoid = sin(sinTheta - PI/2) * 0.085;
 
       // aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
@@ -195,7 +196,7 @@ class SimulationThread implements Runnable{
           myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
 
-          sinTheta += 0.005;
+          sinTheta += 0.002;
           forceSlider.add(aSinusoid, 0);
           firstElement = false;
           secondElement = true; 
@@ -207,7 +208,7 @@ class SimulationThread implements Runnable{
           
           last_timer = millis();
 
-          sinTheta += 0.005;
+          sinTheta += 0.002;
           forceSlider.add(aSinusoid, 0);
           secondElement = false;
         }
@@ -215,14 +216,14 @@ class SimulationThread implements Runnable{
         if (sliderPositions.size() >= positionCounter+2) {
           // print(millis() - last_timer, " ");
           last_timer = millis();
-          sinTheta += 0.005;
+          sinTheta += 0.002;
 
           OscMessage myMessage = new OscMessage("/getPosition");
           myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
           if (positionCounter > 0) {
-            // print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
+            print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
           }
           
           // forceSlider.add(sliderPositions.get(positionCounter), 0);
@@ -296,7 +297,6 @@ void oscEvent(OscMessage theOscMessage) {
       if (sliderPositions.size() > 2) {
         float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 0.001;
         sliderAccelerations.append(acceleration);
-        print(acceleration, " ");
       }
     }
    }
