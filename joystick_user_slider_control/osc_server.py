@@ -5,13 +5,12 @@ from pythonosc import dispatcher
 from pythonosc.osc_server import AsyncIOOSCUDPServer
 import asyncio
 
-import numpy as np
-import matplotlib.pyplot as plt
-
 # Server and client must have their own port
 
-# We send via the client:
+# We send / receive to Processing via this client:
 client = udp_client.SimpleUDPClient("127.0.0.1", 1234)
+# We send to Max via this client
+client2 = udp_client.SimpleUDPClient("127.0.0.1", 4321)
 
 x_positions = []
 slider_focused = False
@@ -23,7 +22,8 @@ def sliderFocus(unused_addr, slider_number):
 
 def useValue(unused_addr, message1):
 # use the slider's value (exemple: make the sound it must do)
-    print('value: ', message1)
+    client2.send_message("/value", "{}".format(message1))
+    print(message1)
 
 def sendPosition(unused_addr, message1):
 # if (slider_focused is True):

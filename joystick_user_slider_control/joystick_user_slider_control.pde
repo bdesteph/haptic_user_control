@@ -44,13 +44,10 @@ void setup(){
   /* create pantagraph graphics */
   create_pantagraph();
   
-  /* create wall graphics */
-  
-  
+  /* create walls and lines graphics */
   wall = create_wall(posWall.x-0.2, posWall.y+rEE, posWall.x+0.2, posWall.y+rEE);
   wall.setStroke(color(0));
 
-  
   line2 = create_wall(posLine.x-0.2, posLine.y-rEE, posLine.x+0.2, posLine.y-rEE);
   line2.setStroke(color(128));
   
@@ -58,7 +55,7 @@ void setup(){
   frameRate(baseFrameRate);
   
   /* create the Slider object */
-  s = new Slider(-0.085, 0.13);
+  s = new  Slider(-0.085, 0.13);
   
   /* setup simulation thread to run at 1kHz */ 
   SimulationThread st = new SimulationThread();

@@ -140,21 +140,23 @@ class Slider {
   void update() {
     // if the slider must go off the limits, the location stays the same and velocity needs to be stopped until it accelerates in a proper direction
     if (this.location.x + this.velocity.x < -0.085) {
-      // this.location.set(-0.085, 0.13);
-      // this.velocity.set(0, 0);
+      this.location.set(-0.085, 0.13);
+      this.velocity.set(0, 0);
+      /*
       velocity.add(acceleration);
       location.add(velocity);
-      
-      sumUserForceSlider.mult(0);
       print("LIMIT REACHED ");
+      */
+      sumUserForceSlider.mult(0);
     } else if (this.location.x + this.velocity.x > 0.085) {
-      // this.location.set(0.085, 0.13);
-      // this.velocity.set(0, 0);
+      this.location.set(0.085, 0.13);
+      this.velocity.set(0, 0);
+      /*
       velocity.add(acceleration);
       location.add(velocity);
-      
-      sumUserForceSlider.mult(0);
       print("LIMIT REACHED ");
+      */
+      sumUserForceSlider.mult(0);
     } else {
       // the velocity must be bounded
       velocity.add(acceleration);
