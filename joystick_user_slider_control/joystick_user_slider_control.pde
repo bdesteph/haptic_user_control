@@ -90,46 +90,6 @@ class SimulationThread implements Runnable{
     
     renderingForce = true;
     
-    /* sinusoid force simulation part */ 
-    float aSinusoid;
-    float posSinusoid;
-    
-    /* TO CHANGE this code segment is used to inverse the sinusod at each phase, so it goes up then down, then down and up etc... */
-    
-    // first part of the sine wave
-    if (firstPart == true) {
-      if (sinPositive == true) {
-        if (sin(sinTheta) < 0) {
-          firstPart = false;
-          sinPositive = false;
-        }
-      }
-      else {
-        if (sin(sinTheta) > 0) {
-          firstPart = false;
-          sinPositive = true;
-        }
-      }
-    } // second partof the sine wave
-    else {
-      if (sinPositive == false) {
-        if (sin(sinTheta) > 0) {
-          firstPart = true;
-          sinPositive = true;
-          sinSwitch = -1 * sinSwitch;
-        }
-      }
-      else {
-        if (sin(sinTheta) < 0) {
-          firstPart = true;
-          sinPositive = true;
-          sinSwitch = -1 * sinSwitch;
-        }
-      }
-    }
-
-    forceSlider.mult(0);
-    
     if(haplyBoard.data_available()){
       /* GET END-EFFECTOR STATE (TASK SPACE) */
       widgetOne.device_read_data();
@@ -181,11 +141,17 @@ class SimulationThread implements Runnable{
       float f = 1000;
       magneticForce.set(0.000001, 0); // 0.00001
       
-      aSinusoid = (-pow(0.002, 2) * sin(sinTheta - PI/2) * 0.085);
+      /* sinusoid force simulation part */ 
+      float accSinusoid;
+      float posSinusoid;
+  
+      forceSlider.mult(0);
+      
+      accSinusoid = (-pow(0.002, 2) * sin(sinTheta - PI/2) * 0.085);
       
       posSinusoid = sin(sinTheta - PI/2) * 0.085;
 
-      // aSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
+      // accSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
       // 0.000000675 parcourt bien tout en x avec sinTheta += 0.005
       
@@ -197,9 +163,11 @@ class SimulationThread implements Runnable{
           oscP52.send(myMessage, myRemoteLocation);
 
           sinTheta += 0.002;
-          forceSlider.add(aSinusoid, 0);
+          forceSlider.add(accSinusoid, 0);
           firstElement = false;
           secondElement = true; 
+
+          sinusoidAccelerations.append(accSinusoid);
         }
         if (secondElement) {
           OscMessage myMessage = new OscMessage("/getPosition");
@@ -209,12 +177,18 @@ class SimulationThread implements Runnable{
           last_timer = millis();
 
           sinTheta += 0.002;
-          forceSlider.add(aSinusoid, 0);
+          forceSlider.add(accSinusoid, 0);
           secondElement = false;
+
+          sinusoidAccelerations.append(accSinusoid);
         }
         /* If we are 2 positions ahead, we can calculate the current acceleration so we can continue */
         if (sliderPositions.size() >= positionCounter+2) {
-          // print(millis() - last_timer, " ");
+        // if (sliderPositions.size() >= 2) {
+          if (millis() - last_timer > 1) {
+            // print(millis() - last_timer, " ");
+          } 
+          
           last_timer = millis();
           sinTheta += 0.002;
 
@@ -222,12 +196,12 @@ class SimulationThread implements Runnable{
           myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
           
-          if (positionCounter > 0) {
-            print("aSinusoid: ", aSinusoid, " acceleration: ", sliderAccelerations.get(positionCounter-1));
-          }
+          sinusoidAccelerations.append(accSinusoid);
           
-          // forceSlider.add(sliderPositions.get(positionCounter), 0);
-          forceSlider.add(aSinusoid, 0);
+          // print("accSinusoid: ", sinusoidAccelerations.get(positionCounter), " acceleration: ", sliderAccelerations.get(positionCounter));
+         
+          // forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
+          forceSlider.add(sliderAccelerations.get(positionCounter), 0);
           positionCounter += 1;
           
           // cursorPercentage is the user's position explained 
@@ -268,8 +242,6 @@ class SimulationThread implements Runnable{
           // s.setLocation(posSinusoid);
         }
       }
-            
-      // mult(5000) is nice with a classic sinusoid but I can't base it on multiplication as velocity can be wayyyyyy bigger
 
       fEE.set(graphics_to_device(fEE));
       /* end haptic wall force calculation */
@@ -290,12 +262,21 @@ void oscEvent(OscMessage theOscMessage) {
     float pos = float(theOscMessage.get(0).stringValue());
     sliderPositions.append(pos);
     /* We then calculate the speed it took to get to this position if we have the precedent position */
+    if (sliderPositions.size() == 1) {
+      sliderSpeeds.append(0);
+    }
     if (sliderPositions.size() > 1) {
-      float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 0.001; // v = d(p0p1)/dt en m/s
+      float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 1; // v = d(p0p1)/dt en m/s
       sliderSpeeds.append(speed);
       /* And finally we calculate the acceleration it took to get there */
+      if (sliderPositions.size() == 1) {
+        sliderAccelerations.append(0);
+      }
+      if (sliderPositions.size() == 2) {
+        sliderAccelerations.append(speed);
+      }
       if (sliderPositions.size() > 2) {
-        float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 0.001;
+        float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 1;
         sliderAccelerations.append(acceleration);
       }
     }

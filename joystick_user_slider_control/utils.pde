@@ -70,6 +70,9 @@ PVector sumUserForceSlider = new PVector(0, 0);
 FloatList sliderPositions = new FloatList();
 FloatList sliderSpeeds = new FloatList();
 FloatList sliderAccelerations = new FloatList();
+
+FloatList sinusoidAccelerations = new FloatList();
+
 int positionCounter = 0;
 
 float velocity = 0;
@@ -133,17 +136,25 @@ class Slider {
     velocity = new PVector(0, 0);
     acceleration = new PVector(0, 0);  
   }
-  
+  /* Update Slider's velocity and location */
   void update() {
     // if the slider must go off the limits, the location stays the same and velocity needs to be stopped until it accelerates in a proper direction
     if (this.location.x + this.velocity.x < -0.085) {
-      this.location.set(-0.085, 0.13);
-      this.velocity.set(0, 0);
+      // this.location.set(-0.085, 0.13);
+      // this.velocity.set(0, 0);
+      velocity.add(acceleration);
+      location.add(velocity);
+      
       sumUserForceSlider.mult(0);
+      print("LIMIT REACHED ");
     } else if (this.location.x + this.velocity.x > 0.085) {
-      this.location.set(0.085, 0.13);
-      this.velocity.set(0, 0);
+      // this.location.set(0.085, 0.13);
+      // this.velocity.set(0, 0);
+      velocity.add(acceleration);
+      location.add(velocity);
+      
       sumUserForceSlider.mult(0);
+      print("LIMIT REACHED ");
     } else {
       // the velocity must be bounded
       velocity.add(acceleration);
