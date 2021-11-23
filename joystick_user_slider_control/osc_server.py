@@ -10,7 +10,7 @@ import asyncio
 # We send / receive to Processing via this client:
 client = udp_client.SimpleUDPClient("127.0.0.1", 1234)
 # We send to Max via this client
-client2 = udp_client.SimpleUDPClient("127.0.0.1", 4321)
+client2 = udp_client.SimpleUDPClient("172.18.84.33", 4321)
 
 x_positions = []
 slider_focused = False
@@ -22,13 +22,11 @@ def sliderFocus(unused_addr, slider_number):
 
 def useValue(unused_addr, message1):
 # use the slider's value (exemple: make the sound it must do)
-    client2.send_message("/value", "{}".format(message1))
-    print(message1)
+    client2.send_message("/value", message1)
 
 def sendPosition(unused_addr, message1):
 # if (slider_focused is True):
     client.send_message("/position", "{}".format(message1))
-    print(message1)
 
 dispatcher = dispatcher.Dispatcher()
 

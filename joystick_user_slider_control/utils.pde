@@ -67,6 +67,9 @@ PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
 PVector sumUserForceSlider = new PVector(0, 0);
 
+PVector vibratoryForce = new PVector(0, 0);
+float vSinTheta = 0;
+
 FloatList sliderPositions = new FloatList();
 FloatList sliderSpeeds = new FloatList();
 FloatList sliderAccelerations = new FloatList();
@@ -233,6 +236,29 @@ void update_animation(float th1, float th2, float xE, float yE){
 }
 
 /* helper functions section, place helper functions here ***************************************************************/
+// This function takes a value from a [-0.085, 0.085] interval and convert it to a [0, 1] value, if absolute is true
+// the two sides intervals (0 to 0.085 and -0.085 to 0 corresponds to 2 0 to 1 intervals
+float scaleValue0to1 (float value, boolean absolute) {
+  if (absolute) {
+    value = abs(value);
+    
+    value /= 0.085;
+  } 
+  else {
+    value += 0.085;
+    value /= 0.17;
+    
+    if (value > 1) {
+      value = 1;
+    }
+    if (value < 0) {
+      value = 0;
+    }
+  }
+  
+  return value;
+}
+
 void create_pantagraph(){
   float lAni = pixelsPerMeter * l;
   float LAni = pixelsPerMeter * L;

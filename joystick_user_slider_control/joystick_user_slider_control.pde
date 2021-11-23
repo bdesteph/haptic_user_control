@@ -96,44 +96,13 @@ class SimulationThread implements Runnable{
       posEE.set(device_to_graphics(posEE)); 
       
       
-      /* haptic wall force calculation */
+      /* all forces must be reset to 0 */
       fWall.set(0, 0);
       posY.set(0, posEE.y);
       fPos.set(0, 0);
       fLine.set(0, 0);
-      
-      penWall.set(0, (posWall.y - (posEE.y + rEE)));
-      
-      if(penWall.y < 0){
-        //fWall = fWall.add(penWall.mult(-kWall));  
-        fWall = fWall.add(penWall.mult(-kWall));  
-      }
-      
-      if (start == true) {
-        // fPos = fPos.add(s.getVelocity());
-        penLine.set(0, (posLine.y - (posEE.y - rEE)));
-        if(penLine.y > 0){
-          // fLine = fLine.add(penLine.mult(-kWall));  
-        }
-        
-        // fPos = (grid_to_force(pos_to_grid(posEE))).mult(-4);
-      
-        // fPos can't be over 2 because it would be to much
-        if (fPos.x > 2.0) {
-          fPos.set(2, 0);
-        }
-        if (fPos.x < -2.0) {
-          fPos.set(-2, 0);
-        }
-      }
-      
-      // is the cursor in the rest zone? if no, then the slider force will apply as well on the cursor
-      if (posEE.x < -0.01 || posEE.x > 0.01) {
-        fEE = (fWall.copy().add(fLine).add(fPos)).mult(-1);
-      }
-      else {
-        fEE = (fWall.copy().add(fLine)).mult(-1);
-      }
+      vibratoryForce.set(0, 0);
+      forceSlider.set(0, 0);
       
       float f = 1000;
       magneticForce.set(0.000001, 0); // 0.00001
@@ -141,12 +110,13 @@ class SimulationThread implements Runnable{
       /* sinusoid force simulation part */ 
       float accSinusoid;
       float posSinusoid;
-  
-      forceSlider.mult(0);
+      float vibratoryForceSinusoid;
       
       accSinusoid = (-pow(0.002, 2) * sin(sinTheta - PI/2) * 0.085);
       
       posSinusoid = sin(sinTheta - PI/2) * 0.085;
+      
+      vibratoryForceSinusoid = sin(vSinTheta) * 1.2; // the vibratory force feedback
 
       // accSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
@@ -160,6 +130,8 @@ class SimulationThread implements Runnable{
           oscP52.send(myMessage, myRemoteLocation);
 
           sinTheta += 0.002;
+          vSinTheta += 0.2;
+          
           forceSlider.add(accSinusoid, 0);
           firstElement = false;
           secondElement = true; 
@@ -174,6 +146,8 @@ class SimulationThread implements Runnable{
           last_timer = millis();
 
           sinTheta += 0.002;
+          vSinTheta += 0.2;
+          
           forceSlider.add(accSinusoid, 0);
           secondElement = false;
 
@@ -187,7 +161,6 @@ class SimulationThread implements Runnable{
           } 
           
           last_timer = millis();
-          sinTheta += 0.002;
 
           OscMessage myMessage = new OscMessage("/getPosition");
           myMessage.add(posSinusoid);
@@ -219,7 +192,7 @@ class SimulationThread implements Runnable{
                userForceSlider = magneticForce.mult(-pow(cursorPercentage, 2));
           }
   
-          // if the cursor is out the rest zone, then the user is expressing a force
+          /* if the cursor is out the rest zone, then the user is expressing a force */
           if (posEE.x < -0.01 || posEE.x > 0.01) {
             /*
             userForceSlider = forceSlider.copy();
@@ -232,11 +205,49 @@ class SimulationThread implements Runnable{
             s.applyForce(sumUserForceSlider.mult(-1));
             sumUserForceSlider.mult(0);
           }
+          
+          /* FORCE FEEDBACK CALCULATION */
+          
+          /* haptic wall force calculation */
+          penWall.set(0, (posWall.y - (posEE.y + rEE)));
+          
+          if(penWall.y < 0){
+            fWall = fWall.add(penWall.mult(-kWall));  
+          }
+          /* haptic line force calculation */
+          penLine.set(0, (posLine.y - (posEE.y - rEE)));
+          
+          if(penLine.y > 0){
+            // fLine = fLine.add(penLine.mult(-kWall));  
+          }
+          
+          /* vibratory force return calculation */
+          if (posEE.x < -0.01 || posEE.x > 0.01) {
+            vibratoryForce = vibratoryForce.add(vibratoryForceSinusoid, 0);
+          }
+          
+          // is the cursor in the rest zone? if no, then the slider force will apply as well on the cursor
+          if (posEE.x < -0.01 || posEE.x > 0.01) {
+            fEE = (fWall.copy().add(fLine).add(vibratoryForce)).mult(-1);
+          }
+          else {
+            fEE = (fWall.copy().add(fLine)).mult(-1);
+          }
+          
+          sinTheta += 0.002;
+          
+          vSinTheta += cursorPercentage * 0.4;
 
           s.applyForce(forceSlider);
           s.update();
-
-          // s.setLocation(posSinusoid);
+          
+          print(vibratoryForce.x);
+          
+          // We send the "real" value to our OSC server so it can then be used in our parametric system
+          s.getX();
+          OscMessage sendEffectivePosition = new OscMessage("/effectivePosition");
+          sendEffectivePosition.add(scaleValue0to1(s.getX(), false));
+          oscP52.send(sendEffectivePosition, myRemoteLocation);
         }
       }
 
