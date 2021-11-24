@@ -103,8 +103,9 @@ class SimulationThread implements Runnable{
       fLine.set(0, 0);
       vibratoryForce.set(0, 0);
       forceSlider.set(0, 0);
+      sliderDeplacementForce.set(0, 0);
       
-      float f = 1000;
+      // TO CHANGE: the maximum magnetic force needs to be automatically decided depending on the slider's trajectory
       magneticForce.set(0.000001, 0); // 0.00001
       
       /* sinusoid force simulation part */ 
@@ -112,11 +113,11 @@ class SimulationThread implements Runnable{
       float posSinusoid;
       float vibratoryForceSinusoid;
       
-      accSinusoid = (-pow(0.002, 2) * sin(sinTheta - PI/2) * 0.085);
+      accSinusoid = (-pow(0.001, 2) * sin(sinTheta - PI/2) * 0.085);
       
       posSinusoid = sin(sinTheta - PI/2) * 0.085;
       
-      vibratoryForceSinusoid = sin(vSinTheta) * 1.2; // the vibratory force feedback
+      vibratoryForceSinusoid = sin(vSinTheta) * 1.25; // the vibratory force feedback
 
       // accSinusoid = sinSwitch * (sin(sinTheta) * 0.000000675); // 0.0000000135 parcourt bien tout en x avec sinTheta += 0.0005
       // 0.000000027 parcourt bien tout en x avec sinTheta += 0.001
@@ -129,7 +130,7 @@ class SimulationThread implements Runnable{
           myMessage.add(posSinusoid);
           oscP52.send(myMessage, myRemoteLocation);
 
-          sinTheta += 0.002;
+          sinTheta += 0.001;
           vSinTheta += 0.2;
           
           forceSlider.add(accSinusoid, 0);
@@ -144,8 +145,10 @@ class SimulationThread implements Runnable{
           oscP52.send(myMessage, myRemoteLocation);
           
           last_timer = millis();
+          
+          lastPosX = posEE.x;
 
-          sinTheta += 0.002;
+          sinTheta += 0.001;
           vSinTheta += 0.2;
           
           forceSlider.add(accSinusoid, 0);
@@ -161,6 +164,17 @@ class SimulationThread implements Runnable{
           } 
           
           last_timer = millis();
+          
+          /* detects the cursor's deplacement direction */
+          float cursorMovement = posEE.x - lastPosX;
+          lastPosX = posEE.x;
+           
+          if (cursorMovement > 0.000001) {
+            cursorDirection = true;
+          }
+          if (cursorMovement < -0.000001) {
+            cursorDirection = false;
+          }
 
           OscMessage myMessage = new OscMessage("/getPosition");
           myMessage.add(posSinusoid);
@@ -169,7 +183,7 @@ class SimulationThread implements Runnable{
           sinusoidAccelerations.append(accSinusoid);
           
           // print("accSinusoid: ", sinusoidAccelerations.get(positionCounter), " acceleration: ", sliderAccelerations.get(positionCounter));
-         
+          
           // forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
           forceSlider.add(sliderAccelerations.get(positionCounter), 0);
           positionCounter += 1;
@@ -201,8 +215,10 @@ class SimulationThread implements Runnable{
             */
             forceSlider.add(userForceSlider);
             sumUserForceSlider.add(userForceSlider);
-          } else {
-            s.applyForce(sumUserForceSlider.mult(-1));
+          } 
+          // TO CHANGE: it mustn't cancel the user force when the cursor is passing by the rest zone
+          else {
+            // s.applyForce(sumUserForceSlider.mult(-1));
             sumUserForceSlider.mult(0);
           }
           
@@ -221,27 +237,49 @@ class SimulationThread implements Runnable{
             // fLine = fLine.add(penLine.mult(-kWall));  
           }
           
-          /* vibratory force return calculation */
+          
           if (posEE.x < -0.01 || posEE.x > 0.01) {
-            vibratoryForce = vibratoryForce.add(vibratoryForceSinusoid, 0);
+            /* vibratory force return calculation */
+            // vibratoryForce = vibratoryForce.add(vibratoryForceSinusoid, 0);
+            
+            /* slider's movement force return */
+            float sliderVelocity = s.getVelocityX().x;
+            
+            float preForce = sliderVelocityToForce(sliderVelocity);
+
+            // then the direction is to the right
+            if (cursorDirection) {
+              if (preForce < 0) {
+                // sliderDeplacementForce = sliderDeplacementForce.add(preForce, 0);
+                // print("Force ");
+              }
+            } else {
+              if (preForce > 0) {
+                // sliderDeplacementForce = sliderDeplacementForce.add(preForce, 0);
+                // print("Force ");
+              }
+            }
           }
           
           // is the cursor in the rest zone? if no, then the slider force will apply as well on the cursor
           if (posEE.x < -0.01 || posEE.x > 0.01) {
-            fEE = (fWall.copy().add(fLine).add(vibratoryForce)).mult(-1);
+            fEE = (fWall.copy().add(fLine).add(vibratoryForce).add(sliderDeplacementForce)).mult(-1);
           }
           else {
             fEE = (fWall.copy().add(fLine)).mult(-1);
           }
           
-          sinTheta += 0.002;
+          sinTheta += 0.001;
           
-          vSinTheta += cursorPercentage * 0.4;
+          vSinTheta += cursorPercentage * 0.8;
+          
+          // print(s.getVelocityX().x, " ");
+          
+          // print(posEE.x, " ");
+          // print(cursorDirection, " ");
 
           s.applyForce(forceSlider);
           s.update();
-          
-          print(vibratoryForce.x);
           
           // We send the "real" value to our OSC server so it can then be used in our parametric system
           s.getX();

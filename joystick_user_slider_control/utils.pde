@@ -67,6 +67,8 @@ PVector forceSlider = new PVector(0, 0); // force in N (kg m s−2)
 PVector userForceSlider = new PVector(0, 0);
 PVector sumUserForceSlider = new PVector(0, 0);
 
+PVector sliderDeplacementForce = new PVector(0, 0);
+
 PVector vibratoryForce = new PVector(0, 0);
 float vSinTheta = 0;
 
@@ -107,6 +109,9 @@ PVector           torques                             = new PVector(0, 0);
 PVector           posEE                               = new PVector(0, 0);
 PVector posY = new PVector(0, 0); 
 PVector           fEE                                 = new PVector(0, 0); 
+float lastPosX;
+// true means a deplacement to the right, false to the left
+boolean cursorDirection;
 
 /* device graphical position */
 PVector           deviceOrigin                        = new PVector(0, 0);
@@ -189,7 +194,7 @@ class Slider {
     return this.location.x;
   }
   
-  PVector getVelocity() {
+  PVector getVelocityX() {
     return this.velocity;
   }
 }
@@ -236,6 +241,13 @@ void update_animation(float th1, float th2, float xE, float yE){
 }
 
 /* helper functions section, place helper functions here ***************************************************************/
+
+float sliderVelocityToForce(float velocity) {
+  float force = velocity * 10000;
+  
+  return force;
+}
+
 // This function takes a value from a [-0.085, 0.085] interval and convert it to a [0, 1] value, if absolute is true
 // the two sides intervals (0 to 0.085 and -0.085 to 0 corresponds to 2 0 to 1 intervals
 float scaleValue0to1 (float value, boolean absolute) {
