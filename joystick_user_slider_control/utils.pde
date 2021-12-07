@@ -138,11 +138,19 @@ class Slider {
   PVector location;
   PVector velocity;
   PVector acceleration;
+  // to be able to calculate the maximum velocity of the slider, we must look into values without any user force order
+  PVector accelerationWithoutUser;
+  PVector velocityWithoutUser;
+  
+  float max_velocity = 0;
   
   Slider(float x, float y) {
     location = new PVector(x, y);
     velocity = new PVector(0, 0);
-    acceleration = new PVector(0, 0);  
+    velocityWithoutUser = new PVector(0, 0);
+    acceleration = new PVector(0, 0); 
+    accelerationWithoutUser = new PVector(0, 0);
+    
   }
   /* Update Slider's velocity and location */
   void update() {
@@ -150,6 +158,7 @@ class Slider {
     if (this.location.x + this.velocity.x < -0.085) {
       this.location.set(-0.085, 0.13);
       this.velocity.set(0, 0);
+      this.velocityWithoutUser.set(0, 0);
       /*
       velocity.add(acceleration);
       location.add(velocity);
@@ -159,6 +168,7 @@ class Slider {
     } else if (this.location.x + this.velocity.x > 0.085) {
       this.location.set(0.085, 0.13);
       this.velocity.set(0, 0);
+      this.velocityWithoutUser.set(0, 0);
       /*
       velocity.add(acceleration);
       location.add(velocity);
@@ -166,15 +176,26 @@ class Slider {
       */
       sumUserForceSlider.mult(0);
     } else {
-      // the velocity must be bounded
+      velocityWithoutUser.add(accelerationWithoutUser); 
       velocity.add(acceleration);
       location.add(velocity);
+      
+      if (abs(this.velocityWithoutUser.x) > abs(max_velocity)) {
+        max_velocity = abs(this.velocityWithoutUser.x);
+      }
     } 
     acceleration.mult(0);
+    accelerationWithoutUser.mult(0);
+  }
+  
+  void applyForce(PVector force, PVector userForce) {
+    accelerationWithoutUser.add(force);
+    acceleration.add(force.add(userForce));
   }
   
   void applyForce(PVector force) {
-    acceleration.add(force);
+    PVector uf = new PVector(0, 0);
+    this.applyForce(force, uf);
   }
   
   void setLocation(float x) {
@@ -194,8 +215,16 @@ class Slider {
     return this.location.x;
   }
   
-  PVector getVelocityX() {
-    return this.velocity;
+  float getMaxVelocity() {
+    return this.max_velocity;
+  }
+  
+  float getVelocityX() {
+    return this.velocity.x;
+  }
+  
+  float getVelocityWithoutUser() {
+    return this.velocityWithoutUser.x;
   }
 }
 

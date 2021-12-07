@@ -93,8 +93,7 @@ class SimulationThread implements Runnable{
     
       angles.set(widgetOne.get_device_angles()); 
       posEE.set(widgetOne.get_device_position(angles.array()));
-      posEE.set(device_to_graphics(posEE)); 
-      
+      posEE.set(device_to_graphics(posEE));       
       
       /* all forces must be reset to 0 */
       fWall.set(0, 0);
@@ -104,9 +103,14 @@ class SimulationThread implements Runnable{
       vibratoryForce.set(0, 0);
       forceSlider.set(0, 0);
       sliderDeplacementForce.set(0, 0);
+      userForceSlider.set(0, 0);
       
       // TO CHANGE: the maximum magnetic force needs to be automatically decided depending on the slider's trajectory
-      magneticForce.set(0.000001, 0); // 0.00001
+      float sliderMaxVelocity = s.getMaxVelocity();
+      print(sliderMaxVelocity, " ");
+      // print("Without: ", s.getVelocityWithoutUser(), " with: ", s.getVelocityX());
+      // magneticForce.set(0.000000168, 0); // maxVelocity = 1.681e-4 this is set to 5e-7
+      magneticForce.set(sliderMaxVelocity / 1000, 0);
       
       /* sinusoid force simulation part */ 
       float accSinusoid;
@@ -213,7 +217,7 @@ class SimulationThread implements Runnable{
             userForceSlider.add(forceSlider.copy().mult(cursorPercentage));
             forceSlider = userForceSlider;
             */
-            forceSlider.add(userForceSlider);
+            // forceSlider.add(userForceSlider);
             sumUserForceSlider.add(userForceSlider);
           } 
           // TO CHANGE: it mustn't cancel the user force when the cursor is passing by the rest zone
@@ -240,10 +244,10 @@ class SimulationThread implements Runnable{
           
           if (posEE.x < -0.01 || posEE.x > 0.01) {
             /* vibratory force return calculation */
-            // vibratoryForce = vibratoryForce.add(vibratoryForceSinusoid, 0);
+            vibratoryForce = vibratoryForce.add(vibratoryForceSinusoid, 0);
             
             /* slider's movement force return */
-            float sliderVelocity = s.getVelocityX().x;
+            float sliderVelocity = s.getVelocityX();
             
             float preForce = sliderVelocityToForce(sliderVelocity);
 
@@ -278,7 +282,7 @@ class SimulationThread implements Runnable{
           // print(posEE.x, " ");
           // print(cursorDirection, " ");
 
-          s.applyForce(forceSlider);
+          s.applyForce(forceSlider, userForceSlider);
           s.update();
           
           // We send the "real" value to our OSC server so it can then be used in our parametric system
