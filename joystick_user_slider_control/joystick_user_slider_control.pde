@@ -124,20 +124,22 @@ class SimulationThread implements Runnable{
       magneticForce.set(sliderMaxVelocity / maxVelocityAttractionRatio, 0);
       
       /* sinusoid force simulation part */ 
-      float accSinusoid;
-      float posSinusoid;
-      float vibratoryForceSinusoid;
       
-      // accSinusoid = (-pow(0.001, 2) * sin(sinTheta - PI/2) * 0.085);
+      accSinusoid = (-pow(0.001, 2) * sin(sinTheta - PI/2) * 0.085);
       
       /* sinusoidal movement */
-      // posSinusoid = sin(sinTheta - PI/2) * 0.085;
+      posSinusoid = sin(sinTheta - PI/2) * 0.085;
       
-      /* saw tooth movement */
-      posSinusoid = - 0.085 + (sinTheta % 3) * (0.170/3);
+      /* saw tooth movement with a 3 seconds period */
+      // posSinusoid = - 0.085 + (sinTheta % 3) * (0.170/3);
+      
+      
+      
+      /* triangle movement */
+      float period = 3; // this var is actually period/2
+      // posSinusoid = - 0.085 + 2 * abs((sinTheta/period) - int((sinTheta/period) + 0.5)) * 0.170;
       
       // print(posSinusoid, " ");
-      // print(" acceleration: ", sliderAccelerations.get(positionCounter));
       
       vibratoryForceSinusoid = sin(vSinTheta) * 1.25; // the vibratory force feedback
 
@@ -155,13 +157,12 @@ class SimulationThread implements Runnable{
           if (sliderPositions.size() > 0) {
             sinTheta += 0.001;
             vSinTheta += 0.2;
+            sinusoidAccelerations.append(accSinusoid);
             
-            forceSlider.add(sliderAccelerations.get(positionCounter), 0);
+            forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
             firstElement = false;
-            secondElement = true; 
+            secondElement = true;
           }
-
-          // sinusoidAccelerations.append(accSinusoid);
         }
         if (secondElement) {
           OscMessage myMessage = new OscMessage("/getPosition");
@@ -175,13 +176,24 @@ class SimulationThread implements Runnable{
           if (sliderPositions.size() > 1) {
             sinTheta += 0.001;
             vSinTheta += 0.2;
+            sinusoidAccelerations.append(accSinusoid);
             
-            forceSlider.add(sliderAccelerations.get(positionCounter), 0);
+            forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
             secondElement = false;
           }
         }
         /* If we are 2 positions ahead, we can calculate the current acceleration so we can continue */
         if (sliderPositions.size() >= positionCounter+2) {
+          
+          sinusoidAccelerations.append(accSinusoid);
+          
+          if (sinusoidAccelerations.get(positionCounter) != sliderAccelerations.get(positionCounter)) {
+            // print(sliderAccelerations.get(positionCounter) - sinusoidAccelerations.get(positionCounter), " ");
+            print("N: ", sinusoidAccelerations.get(positionCounter), " M: ", sliderAccelerations.get(positionCounter), " ");
+          } else {
+            print("YESSS ");
+          }
+          
         // if (sliderPositions.size() >= 2) {
           if (millis() - last_timer > 1) {
             // print(millis() - last_timer, " ");
@@ -207,7 +219,7 @@ class SimulationThread implements Runnable{
           // sinusoidAccelerations.append(accSinusoid);
           
           // forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
-          forceSlider.add(sliderAccelerations.get(positionCounter), 0);
+          forceSlider.add(sinusoidAccelerations.get(positionCounter), 0);
           positionCounter += 1;
           
           // cursorPercentage is the user's position explained 
@@ -297,6 +309,8 @@ class SimulationThread implements Runnable{
 
           s.applyForce(forceSlider, userForceSlider);
           s.update();
+          
+          // print(" acceleration: ", sliderAccelerations.get(positionCounter)); 
           
           // We send the "real" value to our OSC server so it can then be used in our parametric system
           s.getX();

@@ -93,11 +93,14 @@ float maxVelocityAttractionRatio;
 
 HScrollbar hs1;
 
+/* slider's movement parameters */
 float sinTheta = 0;
-//boolean 
-int sinSwitch = 1;
 boolean firstPart = true;
 boolean sinPositive = true;
+
+float accSinusoid;
+float posSinusoid = -0.085;
+float vibratoryForceSinusoid;
 
 /* joystick parameters */
 float x_start = 0.01;
@@ -212,6 +215,15 @@ class PhysicalSlider {
   
   PShape display() {
     float x1 = pixelsPerMeter * (this.location.x - 0.01);
+    float y1 = pixelsPerMeter * (0.115 + rEE);
+    float h = pixelsPerMeter * 0.014;
+    float w = pixelsPerMeter * 0.02;
+  
+    return createShape(RECT,deviceOrigin.x + x1, deviceOrigin.y + y1, w, h);
+  }
+  
+  PShape display(float pos) {
+    float x1 = pixelsPerMeter * (pos - 0.01);
     float y1 = pixelsPerMeter * (0.115 + rEE);
     float h = pixelsPerMeter * 0.014;
     float w = pixelsPerMeter * 0.02;
@@ -339,6 +351,7 @@ void update_animation(float th1, float th2, float xE, float yE){
   circle.strokeWeight(3);
   
   sliderCursor = s.display();
+  // sliderCursor = s.display(posSinusoid);
 
   sliderCursor.setStroke(color(0));
   sliderCursor.setFill(color(255));
