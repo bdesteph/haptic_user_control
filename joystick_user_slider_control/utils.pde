@@ -11,6 +11,7 @@ import netP5.*;
 private final ScheduledExecutorService scheduler      = Executors.newScheduledThreadPool(1);
 /* end scheduler definition ********************************************************************************************/ 
 
+
 /* device block definitions ********************************************************************************************/
 Board             haplyBoard;
 Device            widgetOne;
@@ -59,7 +60,7 @@ PVector           posWall                             = new PVector(0.01, 0.10);
 PVector           posLine                               = new PVector(0.01, 0.08);
 
 /* slider parameters */
-Slider s;
+PhysicalSlider s;
 float xSlider; // x position
 float mSlider = 0.15; // mass in kg
 PVector accelerationSlider = new PVector(0, 0); // acceleration
@@ -83,7 +84,14 @@ int positionCounter = 0;
 float velocity = 0;
 int countvelocity = 0;
 
+/* attraction parameters */
+
 PVector magneticForce = new PVector(0, 0);
+float maxVelocityAttractionRatio;
+
+/* parameter slider parameters */
+
+HScrollbar hs1;
 
 float sinTheta = 0;
 //boolean 
@@ -134,7 +142,7 @@ PShape wall, line2, circle;
 /* end elements definition *********************************************************************************************/ 
 
 
-class Slider {
+class PhysicalSlider {
   PVector location;
   PVector velocity;
   PVector acceleration;
@@ -144,7 +152,7 @@ class Slider {
   
   float max_velocity = 0;
   
-  Slider(float x, float y) {
+  PhysicalSlider(float x, float y) {
     location = new PVector(x, y);
     velocity = new PVector(0, 0);
     velocityWithoutUser = new PVector(0, 0);
@@ -204,7 +212,7 @@ class Slider {
   
   PShape display() {
     float x1 = pixelsPerMeter * (this.location.x - 0.01);
-    float y1 = pixelsPerMeter * (0.125 + rEE);
+    float y1 = pixelsPerMeter * (0.115 + rEE);
     float h = pixelsPerMeter * 0.014;
     float w = pixelsPerMeter * 0.02;
   
@@ -228,6 +236,82 @@ class Slider {
   }
 }
 
+class HScrollbar {
+  int swidth, sheight;    // width and height of bar
+  float xpos, ypos;       // x and y position of bar
+  float spos, newspos, relativeSpos;    // x position of slider
+  float sposMin, sposMax; // max and min values of slider
+  int loose;              // how loose/heavy
+  boolean over;           // is the mouse over the slider?
+  boolean locked;
+  float ratio;
+
+  HScrollbar (float xp, float yp, int sw, int sh, int l) {
+    swidth = sw;
+    sheight = sh;
+    int widthtoheight = sw - sh;
+    ratio = (float)sw / (float)widthtoheight;
+    xpos = xp;
+    ypos = yp-sheight/2;
+    spos = xpos + swidth/2 - sheight/2;
+    newspos = spos;
+    sposMin = xpos;
+    sposMax = xpos + swidth - sheight;
+    loose = l;
+  }
+
+  void update() {
+    if (overEvent()) {
+      over = true;
+    } else {
+      over = false;
+    }
+    if (mousePressed && over) {
+      locked = true;
+    }
+    if (!mousePressed) {
+      locked = false;
+    }
+    if (locked) {
+      newspos = constrain(mouseX-sheight/2, sposMin, sposMax);
+    }
+    if (abs(newspos - spos) > 1) {
+      spos = spos + (newspos-spos)/loose;
+    }
+  }
+
+  float constrain(float val, float minv, float maxv) {
+    return min(max(val, minv), maxv);
+  }
+
+  boolean overEvent() {
+    if (mouseX > xpos && mouseX < xpos+swidth &&
+       mouseY > ypos && mouseY < ypos+sheight) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  void display() {
+    noStroke();
+    fill(204);
+    rect(xpos, ypos, swidth, sheight);
+    if (over || locked) {
+      fill(0, 0, 0);
+    } else {
+      fill(102, 102, 102);
+    }
+    rect(spos, ypos, sheight, sheight);
+  }
+
+  float getPos() {
+    // Convert spos to be values between
+    // 0 and the total width of the scrollbar
+    return newspos * (1/sposMax);
+  }
+}
+
 void update_animation(float th1, float th2, float xE, float yE){
   background(255);
   
@@ -244,6 +328,11 @@ void update_animation(float th1, float th2, float xE, float yE){
   pGraph.setVertex(3, deviceOrigin.x + lAni*cos(th2), deviceOrigin.y + lAni*sin(th2));
   pGraph.setVertex(2, deviceOrigin.x + xE, deviceOrigin.y + yE);
   
+  hs1.update();
+  hs1.display();
+  stroke(0);
+  //line(0, height/2, width, height/2);
+  
   PShape circle = createShape(ELLIPSE, worldPixelWidth/2, 0.09 * pixelsPerMeter, radius, radius);
   circle.noFill();
   circle.stroke(0);
@@ -253,7 +342,6 @@ void update_animation(float th1, float th2, float xE, float yE){
 
   sliderCursor.setStroke(color(0));
   sliderCursor.setFill(color(255));
-
   
   shape(pGraph);
   shape(joint);
@@ -261,6 +349,7 @@ void update_animation(float th1, float th2, float xE, float yE){
   shape(line2);
   shape(circle);
   shape(sliderCursor);
+  
   
   // ellipse(worldPixelWidth/2, worldPixelHeight/2, 250, 250);
   

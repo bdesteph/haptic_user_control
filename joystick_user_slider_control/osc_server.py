@@ -27,6 +27,7 @@ def useValue(unused_addr, message1):
 def sendPosition(unused_addr, message1):
 # if (slider_focused is True):
     client.send_message("/position", "{}".format(message1))
+    print(message1)
 
 dispatcher = dispatcher.Dispatcher()
 
