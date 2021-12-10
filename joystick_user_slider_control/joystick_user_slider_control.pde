@@ -342,16 +342,14 @@ void oscEvent(OscMessage theOscMessage) {
     /* We then calculate the speed it took to get to this position if we have the precedent position */
     if (sliderPositions.size() == 1) {
       sliderSpeeds.append(0);
+      sliderAccelerations.append(accSinusoid);
     }
     if (sliderPositions.size() > 1) {
       float speed = (sliderPositions.get(sliderPositions.size() - 1) - sliderPositions.get(sliderPositions.size() - 2)) / 1; // v = d(p0p1)/dt en m/s
       sliderSpeeds.append(speed);
       /* And finally we calculate the acceleration it took to get there */
-      if (sliderPositions.size() == 1) {
-        sliderAccelerations.append(0);
-      }
       if (sliderPositions.size() == 2) {
-        sliderAccelerations.append(speed);
+        sliderAccelerations.append(accSinusoid);
       }
       if (sliderPositions.size() > 2) {
         float acceleration = (sliderSpeeds.get(sliderSpeeds.size() - 1) - sliderSpeeds.get(sliderSpeeds.size() - 2)) / 1;
